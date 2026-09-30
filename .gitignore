@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+package-lock.json
+tests/out/
+*.stl
+*.3mf
+*.zip
+__pycache__/

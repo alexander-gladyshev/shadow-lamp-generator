@@ -481,7 +481,9 @@ function labels(){
 const ORDER = { trace:0, field:1, strip:2, mesh:3, view:4 };
 let pending = 9, raf = 0;
 function schedule(stage){ pending = Math.min(pending, ORDER[stage] ?? 4); cancelAnimationFrame(raf); raf = requestAnimationFrame(run); }
+let lastRunMs = 0, idleT = 0, prevRaf = 0;
 function run(){
+  const t0 = performance.now(); clearTimeout(idleT); st.dragPending = false;
   const s = pending; pending = 9; labels();
   if (s<=0) compute();
   if (s<=1) buildField();
@@ -489,8 +491,23 @@ function run(){
   if (s<=3) st.meshDirty = true;
   report(); draw();
   if (st.tab==='3d') ensure3D();
+  if (s<=2) lastRunMs = performance.now() - t0;     // how long a real rebuild takes on this device
 }
-document.querySelectorAll('[data-stage]').forEach(el => el.addEventListener('input', () => schedule(el.dataset.stage)));
+/* Sliders: on a fast machine everything updates live. On a slow one (phones) a full rebuild takes a second,
+   so while the finger is on the slider we only draw a cheap preview of the shadow and rebuild once it is released. */
+const LIVE_MS = 110;
+function sliderInput(el){
+  const stage = el.dataset.stage;
+  if (lastRunMs < LIVE_MS) return schedule(stage);
+  pending = Math.min(pending, ORDER[stage] ?? 4); st.dragPending = true; labels();
+  cancelAnimationFrame(prevRaf); prevRaf = requestAnimationFrame(drawPreview);
+  clearTimeout(idleT); idleT = setTimeout(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(run); }, 1200);
+}
+function sliderDone(el){ if (!st.dragPending) return; clearTimeout(idleT); schedule(el.dataset.stage); }
+document.querySelectorAll('[data-stage]').forEach(el => {
+  if (el.type === 'range'){ el.addEventListener('input', () => sliderInput(el)); el.addEventListener('change', () => sliderDone(el)); }
+  else el.addEventListener('input', () => schedule(el.dataset.stage));
+});
 
 /* ================= tracer (PNG → contours) ================= */
 function rasterize(img, res){
@@ -638,8 +655,8 @@ function sampler(g){
   return (wx,wy)=>{ const lx=wx-g.offX, ly=wy-g.offY, ix=c*lx+s*ly, iy=-s*lx+c*ly;
     const px=((ix+wmm/2)*ppm+1)|0, py=((hmm/2-iy)*ppm+1)|0; return (px<0||py<0||px>=cw||py>=ch)?0:a[py*cw+px]; };
 }
-function imageExtent(g){ const F=st.F; if(!F) return 100; const c=Math.cos(g.rot), s=Math.sin(g.rot); let e=0;
-  for(const [ix,iy] of [[-1,-1],[1,-1],[1,1],[-1,1]]){ const x=ix*F.wmm/2, y=iy*F.hmm/2; e=Math.max(e,Math.abs(c*x-s*y+g.offX),Math.abs(s*x+c*y+g.offY)); } return e; }
+function imageExtent(g){ const F=st.F; if(!F) return 100; const c=Math.cos(g.rot), s=Math.sin(g.rot), k=g.imgW/F.wmm; let e=0;   // k≠1 only while a slider preview runs ahead of the field
+  for(const [ix,iy] of [[-1,-1],[1,-1],[1,1],[-1,1]]){ const x=ix*F.wmm*k/2, y=iy*F.hmm*k/2; e=Math.max(e,Math.abs(c*x-s*y+g.offX),Math.abs(s*x+c*y+g.offY)); } return e; }
 
 /* ================= construction: frame + four panels ================= */
 /* Frame: base plate with a groove (two lips) + four corner posts with slots, and a front ring with a cross
@@ -821,10 +838,11 @@ function reportInner(){
 /* ================= 2D drawing ================= */
 function setLegend(items){ const el=$('#legend'); el.textContent=''; el.hidden=!items.length;
   for(const [c,t,dash] of items){ const s=document.createElement('span'); const i=document.createElement('i'); if(dash){ i.className='dash'; i.style.borderColor=c; } else i.style.background=c; s.append(i,t); el.append(s); } }
-function fitCanvas(){ const vp=$('#vp'), dpr=Math.min(2.5,window.devicePixelRatio||1), cw=vp.clientWidth, ch=vp.clientHeight;
+function fitCanvas(low){ const vp=$('#vp'), dpr=low?1:Math.min(2.5,window.devicePixelRatio||1), cw=vp.clientWidth, ch=vp.clientHeight;
   if(cv.width!==Math.round(cw*dpr)||cv.height!==Math.round(ch*dpr)){ cv.width=Math.round(cw*dpr); cv.height=Math.round(ch*dpr); }
   ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,cw,ch); ctx.fillStyle=tok('--stage'); ctx.fillRect(0,0,cw,ch); return {cw,ch,dpr}; }
-function layer(W,H,fill){ const c=document.createElement('canvas'); c.width=W; c.height=H; const g=c.getContext('2d'); const im=g.createImageData(W,H); fill(im.data); g.putImageData(im,0,0); return c; }
+const LAYERS=new Map(); // reuse scratch canvases by size: making a new one per frame piles up canvas memory on phones
+function layer(W,H,fill,keep){ const key=W+'x'+H; let c=keep?null:LAYERS.get(key); if(!c){ c=document.createElement('canvas'); c.width=W; c.height=H; if(!keep){ if(LAYERS.size>12) LAYERS.clear(); LAYERS.set(key,c); } } const g=c.getContext('2d',{willReadFrequently:true}); const im=g.createImageData(W,H); fill(im.data); g.putImageData(im,0,0); return c; }
 
 function draw(){
   const is3d=st.tab==='3d'; cv.hidden=is3d; $('#host3d').hidden=!is3d; $('#note3d').hidden=!is3d||!threeOK(); $('#ov3d').hidden=true;
@@ -868,7 +886,11 @@ function renderWall(S, rx, ry, rw, rh, dpr, layout, E, budget){
   const kOut = 1/(1-G.zPat1/G.H);
   const sc=Math.min(rw,rh)/(2*E), cx=rx+rw/2, cy=ry+rh/2;
   const f=Math.max(1,Math.sqrt(rw*rh*dpr*dpr/budget)); const gw=Math.max(8,Math.round(rw*dpr/f)), gh=Math.max(8,Math.round(rh*dpr/f));
-  const smp=sampler(g);
+  const smp0=sampler(g), kF=S.preview&&st.F ? st.F.wmm/g.imgW : 1;
+  const smp = kF===1 ? smp0 : (wx,wy)=>smp0(g.offX+(wx-g.offX)*kF, g.offY+(wy-g.offY)*kF);
+  const kIn=1/(1-G.zPat0/G.H);
+  const hit = S.preview ? (wx,wy)=>{ const r=Math.max(Math.abs(wx)/ai, Math.abs(wy)/bi); if(r<=kIn) return {kind:'base'}; if(kOut>0 && r>=kOut) return {kind:'out'}; return {kind:'pv', z:G.H*(1-1/r)}; }
+                        : (wx,wy)=>hitPanel(wx,wy,G,P);
   const lit=[255,238,206], dim=[58,51,42], sh=[26,22,18]; // evening room: warm LED light on plaster
   const fg=rgb(tok('--fg')), mut=rgb(tok('--muted')), dang=rgb(tok('--danger')), bg=rgb(tok('--surface'));
   let img;
@@ -876,7 +898,7 @@ function renderWall(S, rx, ry, rw, rh, dpr, layout, E, budget){
     img=layer(gw,gh,d=>{
       for(let j=0;j<gh;j++){ const wy=(rh/2-(j+0.5)*(rh/gh))/sc;
         for(let i=0;i<gw;i++){ const wx=((i+0.5)*(rw/gw)-rw/2)/sc, o=(j*gw+i)*4; let col; const v=smp(wx,wy); d[o+3]=255;
-          if(!v){ col=bg; } else { const h=hitPanel(wx,wy,G,P); col = (h.kind==='body'||h.kind==='base')?mut : h.kind==='top'?dang : fg; if(col===mut) d[o+3]=110; }
+          if(!v){ col=bg; } else { const h=hit(wx,wy); col = (h.kind==='body'||h.kind==='base')?mut : (h.kind==='top'||h.kind==='out')?dang : fg; if(col===mut) d[o+3]=110; }
           d[o]=col[0]; d[o+1]=col[1]; d[o+2]=col[2]; } } });
   } else {
     /* "evening" render: warm falloff, soft penumbra that grows with distance, plaster texture, vignette */
@@ -884,8 +906,9 @@ function renderWall(S, rx, ry, rw, rh, dpr, layout, E, budget){
     for(let j=0;j<gh;j++){ const wy=(rh/2-(j+0.5)*(rh/gh))/sc;
       for(let i=0;i<gw;i++){ const wx=((i+0.5)*(rw/gw)-rw/2)/sc, q=j*gw+i;
         bright[q]=Math.pow(Math.pow(G.H/Math.sqrt(G.H*G.H+wx*wx+wy*wy),3),0.62);
-        const h=hitPanel(wx,wy,G,P);
-        if(h.kind==='base'){ dark[q]=1; soft[q]=0; }
+        const h=hit(wx,wy);
+        if(h.kind==='pv'){ dark[q]=smp(wx,wy)?1:0; soft[q]=Math.min(1,Math.pow(h.z/G.H,1.4)); }
+        else if(h.kind==='base'){ dark[q]=1; soft[q]=0; }
         else if(h.kind==='top'||h.kind==='post'){ dark[q]=1; soft[q]=0.7; }
         else if(h.kind==='panel'){ const p=P[h.side]; const c_=Math.min(p.n-1,Math.max(0,Math.floor((h.u+p.L/2)/p.L*p.n))), row=Math.min(p.SH-1,Math.max(0,Math.floor((h.z-G.zp0)/p.hmm*p.SH)));
           const idx=row*p.n+c_; dark[q]=(p.m[idx]&&!p.float[idx])?1:0; soft[q]=Math.min(1,Math.pow(h.z/G.H,1.4)); } } }
@@ -915,10 +938,18 @@ function renderWall(S, rx, ry, rw, rh, dpr, layout, E, budget){
     if(isFinite(kOut)&&kOut*ai<E*3) ctx.strokeRect(cx-ai*kOut*sc,cy-bi*kOut*sc,2*ai*kOut*sc,2*bi*kOut*sc); ctx.setLineDash([]); }
   return sc;
 }
+/* quick shadow preview while a slider is dragged: the picture itself, the base ring and the cut at the top edge, no panels */
+function drawPreview(){
+  if(!st.dragPending || !st.S || !st.F || st.tab!=='wall' || st.wsub==='compare') return;
+  const g=GP(), G=geom(g), S={ g, G, panels:st.S.panels, preview:true };
+  const {cw,ch,dpr}=fitCanvas(true); const E=wallExtent(S);   // low-res canvas while dragging: cheap to push to the screen
+  renderWall(S,0,0,cw,ch,dpr,st.wsub==='layout',E,70000);
+  setLegend([[tok('--lamp'),'черновик — точная тень, когда отпустите ползунок']]);
+}
 function drawWall(cw,ch,dpr){
   if(st.wsub==='compare') return drawCompare(cw,ch,dpr);
   const S=st.S; if(!S){ setLegend([]); return; } const E=wallExtent(S), layout=st.wsub==='layout';
-  const sc=renderWall(S,0,0,cw,ch,dpr,layout,E,420000);
+  st.lastE=E; const sc=renderWall(S,0,0,cw,ch,dpr,layout,E, matchMedia('(pointer:coarse)').matches ? 200000 : 420000);
   if(layout) setLegend([[tok('--fg'),'попадёт в тень'],[tok('--muted'),'под корпусом'],[tok('--danger'),'за краем стенок'],[tok('--lamp-ink'),'граница узора',true]]);
   else { const bar=niceBar(E*0.35); ctx.fillStyle=tok('--fg'); ctx.font='12px '+tok('--f-mono');
     ctx.fillStyle='rgba(255,240,210,0.75)'; const bx=cw-20-bar*sc, by=ch-22; ctx.fillRect(bx,by,bar*sc,2); ctx.fillText(bar+' мм',bx,by-7);
@@ -1274,7 +1305,9 @@ function setMode(m){ document.body.classList.toggle('simple',m==='simple'); docu
 document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
 const SIZES={ s:{A:80,B:80,D:55}, m:{A:100,B:100,D:65}, l:{A:130,B:130,D:85} };
 function fire(el){ el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); }
-document.querySelectorAll('[data-target]').forEach(q=>q.addEventListener('input',()=>{ const t=$('#'+q.dataset.target); if(q.type==='checkbox') t.checked=q.checked; else t.value=q.value; fire(t); }));
+document.querySelectorAll('[data-target]').forEach(q=>q.addEventListener('input',()=>{ const t=$('#'+q.dataset.target); if(q.type==='checkbox') t.checked=q.checked; else t.value=q.value;
+  if(q.type==='range') t.dispatchEvent(new Event('input',{bubbles:true})); else fire(t); }));
+document.querySelectorAll('[data-target][type=range]').forEach(q=>q.addEventListener('change',()=>{ const t=$('#'+q.dataset.target); t.value=q.value; t.dispatchEvent(new Event('change',{bubbles:true})); }));
 document.querySelectorAll('[data-target]').forEach(q=>{ if(q.tagName==='SELECT') q.addEventListener('change',()=>{ const t=$('#'+q.dataset.target); t.value=q.value; fire(t); }); });
 document.querySelectorAll('#qSize [data-size]').forEach(b=>b.addEventListener('click',()=>{ const v=SIZES[b.dataset.size]; for(const k of ['A','B','D']) $('#'+k).value=v[k]; schedule('strip'); syncQuick(); }));
 document.querySelectorAll('#qBridge [data-bridge]').forEach(b=>b.addEventListener('click',()=>{ $('#bridgeMode').value=b.dataset.bridge; schedule('strip'); syncQuick(); }));
@@ -1347,11 +1380,11 @@ document.querySelectorAll('[data-sub]').forEach(b=>b.addEventListener('click',()
 document.querySelectorAll('[data-ex]').forEach(b=>b.addEventListener('click',()=>{ st.explode=b.dataset.ex==='1'; document.querySelectorAll('[data-ex]').forEach(x=>x.setAttribute('aria-pressed',x===b)); placeParts(); render3D(); }));
 document.querySelectorAll('[data-wsub]').forEach(b=>b.addEventListener('click',()=>{ st.wsub=b.dataset.wsub; document.querySelectorAll('[data-wsub]').forEach(x=>x.setAttribute('aria-pressed',x===b)); draw(); }));
 
-new ResizeObserver(()=>{ if(st.tab!=='3d') draw(); }).observe(vp);
+new ResizeObserver(()=>{ if(st.tab==='3d') return; if(st.dragPending) drawPreview(); else draw(); }).observe(vp);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);
 new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 labels(); showWelcome(true); draw(); updateStatus();
-window.__lamp={ get T3(){ return T3; }, st, render3D };   // for tests
+window.__lamp={ get T3(){ return T3; }, st, render3D, buildField, buildPanels, report, draw, labels };   // for tests
 })();
 </script>
 </body>

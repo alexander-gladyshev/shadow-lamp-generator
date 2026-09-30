@@ -1,4 +1,4 @@
-// Smoke test: open the page, wait for the built-in sample, check the findings, open every tab, export the zip.
+// Smoke test: open the page, pick the first sample on the start screen, check the findings, open every tab, export the zip.
 // Usage: node tests/smoke.mjs   (needs `npm i -D playwright` and `npx playwright install chromium`)
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -15,6 +15,9 @@ const errors = [];
 page.on('pageerror', e => errors.push(e.message));
 
 await page.goto(pathToFileURL(join(root, 'index.html')).href);
+await page.waitForTimeout(800);
+await page.screenshot({ path: join(out, 'welcome.png') });
+await page.click('.sample >> nth=0');
 await page.waitForTimeout(2500);
 
 const warn = await page.locator('#warn').innerText();

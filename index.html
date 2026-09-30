@@ -171,6 +171,19 @@ body:not(.simple) .simple-only{display:none!important}
   .viewport{height:62vh;min-height:360px}
   .stagebar .tabs{max-width:100%;overflow-x:auto}
 }
+.welcome{position:absolute;inset:0;z-index:4;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 45%,rgba(255,236,200,.55),rgba(40,34,27,.2) 45%,rgba(20,17,14,.75) 100%)}
+.viewport.drag .welcome{background:radial-gradient(ellipse at 50% 45%,rgba(255,220,150,.75),rgba(20,17,14,.6))}
+.wcard{position:relative;width:min(620px,100%);background:var(--surface);border-radius:18px;box-shadow:var(--ui-shadow);padding:28px 28px 24px;display:flex;flex-direction:column;gap:12px}
+.wcard h2{margin:0;font:600 clamp(20px,2.6vw,28px)/1.15 var(--f-display);letter-spacing:-.01em;text-wrap:balance}
+.wtext{margin:0;color:var(--muted);font-size:14px;max-width:52ch}
+.wact{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0 12px}
+.wclose{position:absolute;top:14px;right:14px}
+.samples{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.sample{appearance:none;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:6px 6px 9px;display:flex;flex-direction:column;gap:7px;cursor:pointer;color:var(--fg);font:500 13px/1.2 var(--f-body);transition:transform .15s ease,border-color .15s ease}
+.viewport .sample canvas{position:static;inset:auto;width:100%;height:auto;aspect-ratio:1;border-radius:8px;display:block}
+.sample:hover{border-color:var(--lamp);transform:translateY(-2px)}
+.sample:focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
+@media (max-width:560px){ .samples{grid-template-columns:repeat(2,minmax(0,1fr))} .wcard{padding:20px} }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -190,7 +203,7 @@ body:not(.simple) .simple-only{display:none!important}
       <button class="status" id="statusBtn" type="button" aria-expanded="false" aria-controls="drawer"><i></i><span id="statusTxt">—</span></button>
       <label class="btn" for="file">Загрузить картинку</label>
       <input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
-      <button class="btn ghost" id="sample" type="button">Пример</button>
+      <button class="btn ghost" id="sample" type="button">Примеры</button>
       <button class="btn primary" id="dlStl" type="button" hidden>Скачать для печати</button>
     </div>
   </header>
@@ -224,6 +237,12 @@ body:not(.simple) .simple-only{display:none!important}
             <option value="aaa">2 × AAA</option>
             <option value="aa">2 × AA</option>
             <option value="18650">18650 + зарядка USB-C</option>
+          </select></div>
+        <div class="row"><label class="lab" for="qSw">Выключатель сбоку</label>
+          <select id="qSw" data-target="sw">
+            <option value="toggle">Тумблер</option>
+            <option value="rocker">Клавиша</option>
+            <option value="">Без выключателя</option>
           </select></div>
       </div>
       <div class="qgroup">
@@ -310,9 +329,14 @@ body:not(.simple) .simple-only{display:none!important}
         </select></div>
       <div class="two">
         <div class="row"><label class="lab" for="Hb">Толщина основания, мм</label><input type="number" id="Hb" min="15" max="40" step="0.5" value="20" data-stage="strip"></div>
-        <label class="check" style="align-self:end;padding-bottom:8px"><input type="checkbox" id="sw" checked data-stage="strip"> Выключатель</label>
+        <div class="row"><label class="lab" for="sw">Выключатель сбоку</label>
+          <select id="sw" data-stage="strip">
+            <option value="toggle" selected>Тумблер MTS-102</option>
+            <option value="rocker">Клавиша KCD11</option>
+            <option value="">Без выключателя</option>
+          </select></div>
       </div>
-      <p class="hint">Основание — коробка-пирамида у стены: внутри батарейки или плата USB-C, выключатель и резистор. Разъём и движок выключателя выходят вниз через окошки в нижней стенке. Провода идут вверх внутри ножки.</p>
+      <p class="hint">Основание — коробка-пирамида у стены: внутри батарейки или плата USB-C, выключатель и резистор. Батарейки меняются через люк в задней стенке, разъём USB-C выходит вниз, выключатель — на правый бок. Провода от светодиода идут по ножке и канавке в крышке.</p>
     </div>
     </details>
 
@@ -387,6 +411,17 @@ body:not(.simple) .simple-only{display:none!important}
           <button data-ex="1" aria-pressed="false">Разнести</button>
         </div>
       </div>
+      <div class="welcome" id="welcome" hidden>
+        <div class="wcard">
+          <button class="x wclose" id="welcomeClose" type="button" aria-label="Закрыть" hidden>×</button>
+          <p class="kicker">Теневое бра из любой картинки</p>
+          <h2>Перетащите картинку сюда</h2>
+          <p class="wtext">PNG, JPG или фото. Силуэт, стенки и детали для печати считаются прямо в браузере, файл никуда не отправляется.</p>
+          <div class="wact"><label class="btn primary" for="file">Выбрать файл</label><span class="hint">или вставьте из буфера обмена</span></div>
+          <p class="kicker">Или начните с примера</p>
+          <div class="samples" id="samples"></div>
+        </div>
+      </div>
       <div class="note3d" id="note3d" hidden>Мышь: вращать · колесо: масштаб · правая кнопка: сдвиг</div>
       <div class="overlay" id="ov3d" hidden></div>
       <div class="legend" id="legend" hidden></div>
@@ -425,7 +460,7 @@ function GP(){
   const T=Math.min(3,Math.max(0.8,num('T',1.2))), Tb=Math.min(40,Math.max(15,num('Hb',20)));
   const clr=Math.min(0.8,Math.max(0,num('clr',0.2)));
   return { imgW:+$('#imgW').value, offX:+$('#offX').value, offY:+$('#offY').value, rot:+$('#rot').value*Math.PI/180,
-    A, B, T, Tb, clr, D:+$('#D').value, hOff:+$('#hOff').value, led:$('#led').value, power:$('#power').value, sw:$('#sw').checked,
+    A, B, T, Tb, clr, D:+$('#D').value, hOff:+$('#hOff').value, led:$('#led').value, power:$('#power').value, sw:$('#sw').value,
     wallScrews:$('#wallScrews').checked, openCorners:$('#openCorners').checked, bridgeMode:$('#bridgeMode').value, bridgeW:Math.min(4,Math.max(0.6,num('bridgeW',1.2))),
     minDet:Math.max(0,num('minDet',0.8)), ppm:+$('#ppm').value };
 }
@@ -611,21 +646,29 @@ function imageExtent(g){ const F=st.F; if(!F) return 100; const c=Math.cos(g.rot
    that holds the LED facing the room wall. Four flat panels slide into the slots and are locked by the ring.
    A panel pixel at height z blocks the ray from the LED (0,0,H) that reaches the room wall at P = F / (1 - z/H),
    where F is that pixel's point on the panel's inner face. */
+/* classic side switches, mounted on the right side of the skirt; hole/win are [along the side, along z] in mm */
+const SWITCH={
+  toggle:{ name:'Тумблер MTS-102 (резьба M6)', round:6.4, win:[13.5,9], body:[13,9,16], total:3.0 },
+  rocker:{ name:'Клавишный KCD11 (вырез 15 × 10 мм)', hole:[15,10], win:[15.6,10.6], flange:[21,13], body:[15.6,10.6,14], total:2.0 } };
+const USBC={ port:[9.4,3.6], plug:[13.5,7.2], web:0.8 };
 function geom(g){
   /* A×B is the footprint (inner faces of the panels). The electronics box is a stepped pyramid that follows the
      LED's "blind" cone: at height z everything within (1 - z/H) of the footprint can only shade the lamp itself.
      Only a low skirt at the wall is full size — the panels are glued/screwed onto it. */
   const ai=g.A/2, bi=g.B/2, ao=ai+g.T, bo=bi+g.T, c=g.clr, Hb=g.Tb, topStrip=2.0, zTop=Hb+g.D;
   const pw=POWER[g.power]||POWER.usb;
-  const skH = pw.usb ? 8.5 : (g.sw ? 7 : 6);                 // skirt height: room for the USB-C / switch openings
+  const SWd=SWITCH[g.sw]||null;
+  // skirt height: it has to hold the USB-C plug pocket (bottom side) and the switch (right side)
+  const usbZ=BOX.back+USBC.plug[1]/2+0.9, swZ = SWd ? BOX.back+SWd.win[1]/2+0.6 : 0;
+  const skH=Math.max(6, pw.usb? usbZ+USBC.plug[1]/2+1.0 : 0, SWd? swZ+SWd.win[1]/2+1.0 : 0, SWd&&SWd.flange? swZ+SWd.flange[1]/2-0.1 : 0);
   const H=Math.max(Hb+10, Math.min(zTop-g.hOff, zTop-topStrip-0.5));
   const sc=z=>1-z/H, gap=0.6;
   const a0=ai*sc(skH)-gap, b0=bi*sc(skH)-gap, a1=ai*sc(Hb)-gap, b1=bi*sc(Hb)-gap;   // pyramid bottom / top half-sizes
   const Lx=2*ao, Ly=2*bi-c, zp0=0.5, zp1=zTop;
   const zPat0=skH+0.6, zPat1=zTop-topStrip;
   const endX=ai, endY=bi-c/2-1.0;                           // where the optional corner glue strips start
-  const screwZ=(BOX.back+skH)/2, screwU=[g.A/3, g.B/3], portZ=screwZ;
-  return { ao,bo,ai,bi,c,Hb,topStrip,zTop,H,Lx,Ly,zp0,zp1,zPat0,zPat1,endX,endY,screwZ,screwU,portZ,skH,a0,b0,a1,b1,pw,posts:false };
+  const screwZ=(BOX.back+skH)/2, screwU=[g.A/3, g.B/3], portZ=usbZ, swU=-g.B/6;
+  return { ao,bo,ai,bi,c,Hb,topStrip,zTop,H,Lx,Ly,zp0,zp1,zPat0,zPat1,endX,endY,screwZ,screwU,portZ,swZ,swU,SWd,skH,a0,b0,a1,b1,pw,posts:false };
 }
 const PANEL_NAMES=['Нижняя','Правая','Верхняя','Левая'];
 function buildPanels(opts){
@@ -645,7 +688,8 @@ function buildPanels(opts){
         for(let i=0;i<n;i++){ const u=-L/2+(i+0.5)*L/n; const inside= round ? (u-uc)**2+(z-zc)**2<=hw*hw : Math.abs(u-uc)<=hw;
           if(inside){ m[r*n+i]=0; border[r*n+i]=0; } } } };
       if(g.wallScrews){ const su=G.screwU[k%2]; for(const uc of [-su,su]) punch(uc,G.screwZ,1.15,1.15,true); }
-      if(k===0){ if(G.pw.usb) punch(g.sw? G.ai*0.3 : 0, G.portZ, 5.2, 2.2, false); if(g.sw) punch(G.pw.usb? -G.ai*0.3 : 0, G.portZ, 4.0, 1.8, false); }
+      if(k===0 && G.pw.usb) punch(0, G.portZ, USBC.plug[0]/2, USBC.plug[1]/2, false);   // the plug overmold goes through the panel
+      if(k===1 && G.SWd){ const d=G.SWd; if(d.round) punch(G.swU, G.swZ, d.round/2, d.round/2, true); else punch(G.swU, G.swZ, d.hole[0]/2, d.hole[1]/2, false); }
       return { m, border };
     };
     // open corners first; if the panel would fall apart without them, add thin glue strips at its ends
@@ -763,14 +807,15 @@ function reportInner(){
   else if(R.bgRemoved) add('info','Фон', 'Убрана рамка или фон по краям картинки, чтобы вокруг светильника не было сплошной тени.');
   if(cov && cov.inside>0.15) add('info','Под корпусом', `${Math.round(cov.inside*100)}% картинки приходится на сам светильник.`);
   const ringMm=Math.min(G.ai,G.bi)*(1/(1-G.zPat0/G.H)-1); if(ringMm>18) add('info','Рамка тени', `Вокруг светильника будет тёмная полоса около ${Math.round(ringMm)} мм — это тень коробки основания. Сделайте стенки глубже или основание тоньше, чтобы её сузить.`);
-  const pw=POWER[g.power]; if(pw&&pw.holder){ const [hl,hw,hh]=pw.holder, zH=BOX.back+hh, f=1-zH/G.H, inW=2*(G.ai*f-0.6-BOX.wall)-8, inH=2*(G.bi*f-0.6-BOX.wall)-8, cav=g.Tb-BOX.back-BOX.top;
-    if(Math.max(hl,hw)>Math.max(inW,inH)||Math.min(hl,hw)>Math.min(inW,inH)) add('warn','Батарейки', `Держатель ${pw.name} (${hl}×${hw} мм) не помещается в коробку. Увеличьте ширину или высоту светильника.`);
-    if(hh>cav) add('warn','Батарейки', `Держатель ${pw.name} высотой ${hh} мм не влезает: внутри коробки ${fmt(cav)} мм. Увеличьте толщину основания.`); }
+  const pw=POWER[g.power], LY=boxLayout(g,G);
+  if(LY.pocket && !LY.pocketFits) add('warn','Батарейки', `Отсек под ${pw.name} (${pw.holder[0]}×${pw.holder[1]} мм) не помещается в пирамиду основания. Увеличьте размер светильника или выберите батарейки поменьше.`);
+  if(LY.pocket && LY.wireGap<1) add('warn','Батарейки', `Держатель высотой ${pw.holder[2]} мм упирается в крышку. Увеличьте толщину основания до ${fmt(g.Tb+1-LY.wireGap)} мм.`);
+  if(LY.clash.length) add('warn','Тесно', 'Внутри коробки не помещаются рядом: '+LY.clash.join('; ')+'. Увеличьте размер светильника или смените питание.');
   const nt=S.panels.filter(p=>p.noTop).length; if(nt) add('info','Верх', `У ${nt} из 4 стенок узор не доходит до верхнего края, поэтому верхняя полоса убрана: такие стенки держатся только на основании.`);
   if(S.stripped) add('info','Углы', `На ${S.stripped} из 4 стенок добавлены тонкие полоски на торцах: без них узор не связывает верх стенки с низом, и она развалится. От них в углах будут тонкие линии.`);
   if(G.a1<15||G.b1<15) add('warn','Основание', 'Основание слишком толстое для такой высоты света: пирамида сужается почти до нуля. Сделайте основание тоньше или стенки выше.');
   if(g.A>250||g.B>250) add('warn','Стол', 'Корпус больше 250 мм: не поместится на стол большинства принтеров.');
-  if(!S.floatComps && (!cov||cov.beyond<=0.005) && thinShare<=0.003) add('ok','Готово','Все кусочки узора держатся на рамке своих стенок. Можно скачивать детали.');
+  if(!ul.querySelector('.chip.warn') && !S.floatComps && (!cov||cov.beyond<=0.005) && thinShare<=0.003) add('ok','Готово','Все кусочки узора держатся на рамке своих стенок. Можно скачивать детали.');
 }
 
 /* ================= 2D drawing ================= */
@@ -950,15 +995,15 @@ const circleShape=(x,y,r)=>ngon(new THREE.Shape(),x,y,r,false);
 const extrude=(shapes,depth,z0,segs)=>{ const geo=new THREE.ExtrudeGeometry(shapes,{depth,bevelEnabled:false,curveSegments:segs||20}); geo.translate(0,0,z0); return geo; };
 
 const POWER={
-  usb:  { Hb:20, name:'USB-C 5 В', holder:null, usb:true, R:'100 Ом', U:5 },
-  aaa:  { Hb:21, name:'2 × AAA', holder:[50,25,13], usb:false, R:'4,7–10 Ом', U:3 },
-  aa:   { Hb:24, name:'2 × AA', holder:[58,32,16], usb:false, R:'4,7–10 Ом', U:3 },
-  '18650':{ Hb:26, name:'18650 + модуль зарядки TP4056 USB-C', holder:[78,22,20], usb:true, R:'68 Ом', U:4.2 }
+  usb:  { Hb:20, name:'USB-C 5 В', holder:null, usb:true, board:[12,16], R:'100 Ом', U:5 },
+  aaa:  { Hb:22, name:'2 × AAA', holder:[50,25,13], usb:false, R:'4,7–10 Ом', U:3 },
+  aa:   { Hb:25, name:'2 × AA', holder:[58,32,16], usb:false, R:'4,7–10 Ом', U:3 },
+  '18650':{ Hb:29, name:'18650 + модуль зарядки TP4056 USB-C', holder:[78,22,20], usb:true, board:[17,28], R:'68 Ом', U:4.2 }
 };
 const BOX={ back:2.5, wall:2.5, top:2.5 };
 /* the stem lives inside the "blind" cone: rays from the LED through it can only reach the lamp's own footprint */
 function stemProfile(g,G){
-  const zb=G.Hb, H=G.H, cone=z=>0.72*Math.min(G.ai,G.bi)*(H-z)/H, rMax=4.5, rIn=0.75, rTip=1.3;
+  const zb=G.Hb, H=G.H, cone=z=>0.72*Math.min(G.ai,G.bi)*(H-z)/H, rMax=4.5, rIn = g.led==='5' ? 1.4 : 0.9, rTip=Math.max(1.3,rIn+0.7);
   const emit = g.led==='5' ? 2.8 : 0.9;               // emitter height above the dome tip / chip base
   let zTip=Math.min(H-emit, H-rTip*H/(0.72*Math.min(G.ai,G.bi)));
   const pts=[]; const N=28;
@@ -978,42 +1023,97 @@ function frustumShell(x0,y0,x1,y1,z0,z1,w){ // hollow rectangular frustum, outwa
     quad(O0[i],O0[j],O1[j],O1[i]); quad(I0[j],I0[i],I1[i],I1[j]);
     quad(O0[i],I0[i],I0[j],O0[j]); quad(O1[i],O1[j],I1[j],I1[i]); }
   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.computeVertexNormals(); return g; }
+/* where everything sits inside the box (x to the right, y up, z out of the wall). Shared by the 3D parts and the checks. */
+function boxLayout(g,G){
+  const pw=G.pw, ai=G.ai, bi=G.bi, SW=4, L={ SW, items:[] };
+  const item=(name,x0,x1,y0,y1)=>L.items.push({name,x0,x1,y0,y1});
+  L.bossX=G.a1-BOX.wall-3.8; L.bossY=G.b1-BOX.wall-3.8;
+  for(const sx of [-1,1]) for(const sy of [-1,1]) item('стойка крышки', sx*L.bossX-3.3, sx*L.bossX+3.3, sy*L.bossY-3.3, sy*L.bossY+3.3);
+  if(pw.usb){ const [bw,bd]=pw.board; L.board={ w:bw, d:bd, y0:-bi+SW, zPcb:G.portZ-2.6 }; item(g.power==='18650'?'плата зарядки':'плата USB-C', -bw/2-1.4, bw/2+1.4, -bi+SW, -bi+SW+bd); }
+  if(pw.holder){ const [hl,hw,hh]=pw.holder, px=hl/2+0.3, py=hw/2+0.3, wall=2.0;
+    let yc=0; if(L.board) yc=Math.max(0, L.board.y0+L.board.d+1.5+py+wall);
+    L.pocket={ yc, px, py, wall, z1:BOX.back+hh+0.8, ceil:1.6, hh };
+    L.door={ yc, dx:hl/2+7.5, dy:hw/2+1.6, clr:0.25 };
+    L.doorScrews=[[-(hl/2+4.5),yc],[hl/2+4.5,yc]];
+    item('отсек батареек', -px-wall, px+wall, yc-py-wall, yc+py+wall);
+    for(const [x,y] of L.doorScrews) item('бобышка люка', x-2.6, x+2.6, y-2.6, y+2.6); }
+  if(G.SWd){ const b=G.SWd.body; item('выключатель', ai-b[2], ai, G.swU-b[0]/2, G.swU+b[0]/2); }
+  const ky = L.door ? L.door.yc+L.door.dy+6 : bi*0.25, kx=Math.min(ai*0.3, Math.max(8, (L.bossX-3.3-5)));
+  L.keys=[[-kx,ky],[kx,ky]]; for(const [x,y] of L.keys) item('паз для самореза', x-4.5, x+4.5, y-4.5, y+9.6);
+  // clashes between parts that share the same floor
+  L.clash=[]; const I=L.items; for(let i=0;i<I.length;i++) for(let j=i+1;j<I.length;j++){ const a=I[i], b=I[j]; if(a.name===b.name || [a.name,b.name].sort().join()==='бобышка люка,отсек батареек') continue;
+    if(a.x0<b.x1&&b.x0<a.x1&&a.y0<b.y1&&b.y0<a.y1) L.clash.push(a.name+' и '+b.name); }
+  for(const it of I) if(Math.max(Math.abs(it.x0),Math.abs(it.x1))>ai-SW+0.01+(it.name==='выключатель'?SW:0) || Math.max(Math.abs(it.y0),Math.abs(it.y1))>bi-SW+0.01) L.clash.push(it.name+' и стенка коробки');
+  if(L.pocket){ const zt=L.pocket.z1+L.pocket.ceil, f=1-zt/G.H, inX=G.ai*f-0.6-BOX.wall, inY=G.bi*f-0.6-BOX.wall;
+    L.pocketFits = L.pocket.px+L.pocket.wall<=inX && Math.abs(L.pocket.yc)+L.pocket.py+L.pocket.wall<=inY;
+    L.wireGap = (g.Tb-BOX.top) - zt; }
+  L.clash=[...new Set(L.clash)];
+  return L;
+}
+const boxGeo=(x0,x1,y0,y1,z0,z1)=>{ const b=new THREE.BoxGeometry(x1-x0,y1-y0,z1-z0); b.translate((x0+x1)/2,(y0+y1)/2,(z0+z1)/2); return b; };
+const rectAt=(P,x,y,hx,hy,cw)=>{ const pts=[[x-hx,y-hy],[x+hx,y-hy],[x+hx,y+hy],[x-hx,y+hy]]; if(cw) pts.reverse(); pts.forEach(([X,Y],i)=>i?P.lineTo(X,Y):P.moveTo(X,Y)); P.closePath(); return P; };
 function buildParts(){
   const S=st.S; if(!S||!threeOK()) return null; const g=S.g, G=S.G, pw=POWER[g.power]||POWER.usb;
-  const Hb=G.Hb, zPlate=Hb-BOX.top, ai=G.ai, bi=G.bi;
-  /* 1. electronics box: full-size back + low skirt (the panels sit on it), then a pyramid that stays inside the blind cone */
-  const box=[], sk=G.skH, SW=4;
-  const back=rectShape(ai,bi); for(const sx of [-1,1]) back.holes.push(keyholePath(sx*ai*0.45, bi*0.25)); box.push(extrude(back,BOX.back,0,20));
-  // skirt walls drawn in their own planes, so the screw and port holes are real; every matrix has det = +1
+  const Hb=G.Hb, zPlate=Hb-BOX.top, ai=G.ai, bi=G.bi, LY=boxLayout(g,G);
+  /* 1. electronics box: back with the battery hatch, a skirt the panels sit on, and a pyramid that stays inside the blind cone */
+  const box=[], sk=G.skH, SW=LY.SW;
+  const back=rectShape(ai,bi); for(const [x,y] of LY.keys) back.holes.push(keyholePath(x,y));
+  if(LY.door) back.holes.push(rectAt(new THREE.Path(),0,LY.door.yc,LY.door.dx,LY.door.dy,true));
+  box.push(extrude(back,BOX.back,0,20));
+  // skirt walls drawn in their own planes (local z = 0 is the outer face), every matrix has det = +1.
+  // A wall can be split into layers: the USB-C side gets a pocket for the plug overmold, the switch side a thin web the switch clamps to.
   const walls=[ {k:0, len:ai, M:[-1,0,0,0, 0,0,1,-bi], su:-1}, {k:1, len:bi-SW, M:[0,0,-1,ai, -1,0,0,0], su:-1},
                 {k:2, len:ai, M:[1,0,0,0, 0,0,-1,bi], su:1},   {k:3, len:bi-SW, M:[0,0,1,-ai, 1,0,0,0], su:1} ];
-  const wz0=BOX.back, wh=sk-BOX.back, zc=G.portZ;
+  const wz0=BOX.back, SWd=G.SWd;
   for(const w of walls){
-    const sh=new THREE.Shape(); sh.moveTo(-w.len,wz0); sh.lineTo(w.len,wz0); sh.lineTo(w.len,wz0+wh); sh.lineTo(-w.len,wz0+wh); sh.closePath();
-    const hole=(u,ww,hh)=>{ const x=w.su*u, q=new THREE.Path(); q.moveTo(x-ww/2,zc-hh/2); q.lineTo(x-ww/2,zc+hh/2); q.lineTo(x+ww/2,zc+hh/2); q.lineTo(x+ww/2,zc-hh/2); q.closePath(); return q; };
-    if(w.k===0){ if(pw.usb) sh.holes.push(hole(g.sw? ai*0.3 : 0, 9.4, 3.6)); if(g.sw) sh.holes.push(hole(pw.usb? -ai*0.3 : 0, 7, 2.8)); }
-    if(g.wallScrews) for(const u of [-G.screwU[w.k%2],G.screwU[w.k%2]]) sh.holes.push(circlePath(w.su*u,G.screwZ,0.8));
-    const Mx=new THREE.Matrix4().set(...w.M, 0,1,0,0, 0,0,0,1);
-    const geo=new THREE.ExtrudeGeometry(sh,{depth:SW,bevelEnabled:false,curveSegments:16}); geo.applyMatrix4(Mx); box.push(geo); }
-  // ledge that joins the skirt to the pyramid
+    let layers=[{d0:0,d1:SW,cut:[]}];
+    if(w.k===0 && pw.usb) layers=[{d0:0,d1:SW-USBC.web,cut:[['r',0,USBC.plug[0],USBC.plug[1],G.portZ]]},{d0:SW-USBC.web,d1:SW,cut:[['r',0,USBC.port[0],USBC.port[1],G.portZ]]}];
+    if(w.k===1 && SWd){ const web=SWd.total-g.T, win=['r',G.swU,SWd.win[0],SWd.win[1],G.swZ];
+      const hole=SWd.round? ['c',G.swU,SWd.round/2,0,G.swZ] : ['r',G.swU,SWd.hole[0],SWd.hole[1],G.swZ];
+      layers = web>=0.6 ? [{d0:0,d1:web,cut:[hole]},{d0:web,d1:SW,cut:[win]}] : [{d0:0,d1:SW,cut:[win]}]; }
+    for(const Ly of layers){
+      const sh=new THREE.Shape(); sh.moveTo(-w.len,wz0); sh.lineTo(w.len,wz0); sh.lineTo(w.len,sk); sh.lineTo(-w.len,sk); sh.closePath();
+      for(const [t,u,a,b,zc] of Ly.cut) sh.holes.push(t==='c'? circlePath(w.su*u,zc,a) : rectAt(new THREE.Path(),w.su*u,zc,a/2,b/2,true));
+      if(g.wallScrews) for(const u of [-G.screwU[w.k%2],G.screwU[w.k%2]]) sh.holes.push(circlePath(w.su*u,G.screwZ,0.8));
+      const Mx=new THREE.Matrix4().set(...w.M, 0,1,0,0, 0,0,0,1);
+      const e0=Ly.d0>0?Ly.d0-0.02:0; const geo=new THREE.ExtrudeGeometry(sh,{depth:Ly.d1-e0,bevelEnabled:false,curveSegments:16}); geo.translate(0,0,e0); geo.applyMatrix4(Mx); box.push(geo); } }
+  // shoulder: closes the skirt at the top; the pyramid stands right on it
   const ledge=rectShape(ai,bi); ledge.holes.push(rectPath(G.a0-BOX.wall,G.b0-BOX.wall)); box.push(extrude(ledge,2,sk-2,8));
-  // hollow pyramid frustum from the ledge up to the lid
-  box.push(frustumShell(G.a0,G.b0,G.a1,G.b1,sk+2,zPlate,BOX.wall));
-  const bossX=G.a1-BOX.wall-3.8, bossY=G.b1-BOX.wall-3.8, corners=[[1,1],[-1,1],[-1,-1],[1,-1]];
+  box.push(frustumShell(G.a0,G.b0,G.a1,G.b1,sk,zPlate,BOX.wall));
+  const corners=[[1,1],[-1,1],[-1,-1],[1,-1]], bossX=LY.bossX, bossY=LY.bossY;
   for(const [sx,sy] of corners){ const b=circleShape(sx*bossX,sy*bossY,3.3); b.holes.push(circlePath(sx*bossX,sy*bossY,0.9)); box.push(extrude(b,zPlate-BOX.back,BOX.back,24)); }
-  /* 2. lid with the tapered hollow stem; comes off to the front for service */
-  const top=[]; const plate=rectShape(G.a1,G.b1);
-  for(const [sx,sy] of corners) plate.holes.push(circlePath(sx*bossX,sy*bossY,1.2));
-  plate.holes.push(circlePath(0,0,1.6)); top.push(extrude(plate,BOX.top,zPlate,24));
-  const SP=stemProfile(g,G), prof=[];
+  // battery pocket: four walls and a ceiling, open towards the hatch; a slot in the right wall lets the holder's wires out
+  if(LY.pocket){ const P=LY.pocket, x0=P.px, x1=P.px+P.wall, y0=P.yc-P.py-P.wall, y1=P.yc+P.py+P.wall, z0=BOX.back, z1=P.z1, slot=2.5;
+    box.push(boxGeo(-x1,-x0,y0,y1,z0,z1));
+    box.push(boxGeo(x0,x1,y0,P.yc-slot,z0,z1)); box.push(boxGeo(x0,x1,P.yc+slot,y1,z0,z1));
+    box.push(boxGeo(-x0,x0,y0,P.yc-P.py,z0,z1)); box.push(boxGeo(-x0,x0,P.yc+P.py,y1,z0,z1));
+    box.push(boxGeo(-x1,x1,y0,y1,z1,z1+P.ceil));
+    for(const [x,y] of LY.doorScrews){ const b=circleShape(x,y,2.6); b.holes.push(circlePath(x,y,0.8)); box.push(extrude(b,6.5,BOX.back,20)); } }
+  // cradle for the USB-C board: a floor that lifts the port to the opening, plus two guide rails
+  if(LY.board){ const B=LY.board, y0=B.y0, y1=B.y0+B.d, zf=Math.max(BOX.back+0.4,B.zPcb);
+    box.push(boxGeo(-B.w/2,B.w/2,y0+2,y1,BOX.back,zf));
+    for(const s of [-1,1]) box.push(boxGeo(s>0?B.w/2+0.2:-B.w/2-1.4, s>0?B.w/2+1.4:-B.w/2-0.2, y0, y1, BOX.back, zf+2.2)); }
+  /* 2. lid with the tapered hollow stem; a groove on its inside leads the LED wires from the stem to the side */
+  const top=[]; const SP=stemProfile(g,G), rHole=SP.rIn+0.3, grooveD=1.2;
+  const outer=rectShape(G.a1,G.b1), inner=rectShape(G.a1,G.b1);
+  for(const [sx,sy] of corners){ outer.holes.push(circlePath(sx*bossX,sy*bossY,1.2)); inner.holes.push(circlePath(sx*bossX,sy*bossY,1.2)); }
+  outer.holes.push(circlePath(0,0,rHole));
+  const gx1=G.a1-BOX.wall-0.8, gs=new THREE.Path(); gs.moveTo(-rHole,-1.6); gs.lineTo(-rHole,1.6); gs.lineTo(gx1,1.6); gs.lineTo(gx1,-1.6); gs.closePath(); inner.holes.push(gs);
+  top.push(extrude(inner,grooveD,zPlate,24)); top.push(extrude(outer,BOX.top-grooveD+0.02,zPlate+grooveD-0.02,24));
+  const prof=[];
   prof.push(new THREE.Vector2(SP.rIn,Hb-0.01)); for(const [r,z] of SP.pts) prof.push(new THREE.Vector2(r,z));
   prof.push(new THREE.Vector2(SP.rIn,SP.zTip)); prof.push(new THREE.Vector2(SP.rIn,Hb-0.01));
   const stem=new THREE.LatheGeometry(prof,40); stem.rotateX(Math.PI/2); top.push(stem);
-  /* 3. four flat panels */
+  /* 3. battery hatch: flush with the back, held by two M2 screws and pressed by the wall */
+  const cap=[]; if(LY.door){ const D=LY.door, d=new THREE.Shape(); rectAt(d,0,D.yc,D.dx-D.clr,D.dy-D.clr,false);
+    for(const [x,y] of LY.doorScrews) d.holes.push(circlePath(x,y,1.15));
+    d.holes.push(rectAt(new THREE.Path(),0,D.yc-D.dy+D.clr+2.2,5,1.2,true));   // finger slot to pull it out
+    cap.push(extrude(d,BOX.back,0,20)); }
+  /* 4. four flat panels */
   const panels=S.panels.map(p=>{ const toXY=(x,y)=>[x*p.L/p.n, G.zp0+y*p.hmm/p.SH];
     const mk=test=>{ const shapes=maskToShapes((x,y)=>test(y*p.n+x)?1:0,p.n,p.SH,toXY); return shapes.length? new THREE.ExtrudeGeometry(shapes,{depth:g.T,bevelEnabled:false,curveSegments:1}) : null; };
     return { k:p.k, name:p.name, L:p.L, good:mk(i=>p.m[i]&&!p.float[i]), bad:mk(i=>p.float[i]) }; });
-  return { box, top, cap:[], panels, stem:SP, pw };
+  return { box, top, cap, panels, stem:SP, pw, LY };
 }
 
 let T3=null;
@@ -1052,7 +1152,7 @@ function rebuild3D(){
 }
 function placeParts(){
   if(!T3||!st.S) return; const ex=st.explode, D=st.S.g.D;
-  const lift=ex?D+30:0; T3.top.position.set(0,0,lift); T3.cap.position.set(0,0,0);
+  const lift=ex?D+30:0; T3.top.position.set(0,0,lift); T3.cap.position.set(0, ex? -(st.S.G.bo*2+20) : 0, 0);
   T3.led.position.z=st.S.G.H+lift;
   const out=[[0,-1],[1,0],[0,1],[-1,0]]; T3.panels.forEach((gr,k)=>gr.position.set(ex?out[k][0]*35:0, ex?out[k][1]*35:0, 0));
   T3.light.castShadow=!ex; T3.fill.intensity=ex?0.45:0.22;
@@ -1094,10 +1194,11 @@ async function save(filename,data){ if(!downloads) return browserSave(filename,d
 $('#dlSvg').addEventListener('click',()=>{ const s=buildSVG(); if(!s) return toast('Сначала загрузите картинку.',true); save(st.name+'.svg',s); });
 function exportFiles(){
   if(st.meshDirty||!st.parts){ st.parts=buildParts(); st.meshDirty=false; if(T3) rebuild3D(); }
-  const M=st.parts, S=st.S, g=S.g, G=S.G, enc=new TextEncoder(), files=[], pw=M.pw;
+  const M=st.parts, S=st.S, g=S.g, G=S.G, enc=new TextEncoder(), files=[], pw=M.pw, LY=M.LY, SWd=G.SWd;
   const moveDown=(geos,dz)=>geos.map(x=>{ const c=x.clone(); c.translate(0,0,-dz); return c; });
   files.push({name:'1_korobka_osnovaniya.stl', data:stlBytes(M.box)});
   files.push({name:'2_kryshka_s_nozhkoy.stl', data:stlBytes(moveDown(M.top,G.Hb-BOX.top))});
+  if(M.cap.length) files.push({name:'7_lyuk_batareek.stl', data:stlBytes(M.cap)});
   const names=['3_stenka_nizhnyaya','4_stenka_pravaya','5_stenka_verhnyaya','6_stenka_levaya'];
   M.panels.forEach(p=>{ if(!p.good) return; const c=p.good.clone(); c.translate(0,-G.zp0,0); files.push({name:names[p.k]+'.stl', data:stlBytes([c])}); });
   files.push({name:'ten.svg', data:enc.encode(buildSVG())});
@@ -1108,32 +1209,41 @@ function exportFiles(){
   const readme=
 `Теневое бра "${st.name}"
 
-Габарит ${fmt(2*G.ao)} × ${fmt(2*G.bo)} мм, глубина ${fmt(G.zTop)} мм. Основание: у стены ${g.A} × ${g.B} мм, спереди ${fmt(2*G.a1)} × ${fmt(2*G.b1)} мм, толщина ${g.Tb} мм.
+Габарит ${fmt(2*G.ao)} × ${fmt(2*G.bo)} мм, глубина ${fmt(G.zTop)} мм. Основание: у стены ${g.A} × ${g.B} мм, спереди ${fmt(2*G.a1)} × ${fmt(2*G.b1)} мм, толщина ${g.Tb} мм, «юбка» ${fmt(G.skH)} мм.
 Тень на стене ${Math.round(st.F.wmm)} × ${Math.round(st.F.hmm)} мм. Питание: ${pw.name}. Светящая точка: ${fmt(G.H)} мм от стены.
 
 ДЕТАЛИ (STL уже повёрнуты для печати, поддержки не нужны)
 1_korobka_osnovaniya — коробка-пирамида для электроники с «юбкой» у стены. Задней стенкой на стол, поддержки не нужны.
-2_kryshka_s_nozhkoy  — крышка коробки с полой ножкой. Крышкой на стол.
-3–6_stenka_*         — стенки с узором, печатать плашмя.
+2_kryshka_s_nozhkoy  — крышка коробки с полой ножкой. Крышкой на стол. Изнутри канавка для проводов светодиода.
+${M.cap.length?'7_lyuk_batareek      — люк отсека батареек, печатать плашмя.\n':''}3–6_stenka_*         — стенки с узором, печатать плашмя.
   нижняя и верхняя: ${fmt(G.Lx)} × ${ph} мм (длинные, закрывают углы), правая и левая: ${fmt(G.Ly)} × ${ph} мм, толщина ${g.T} мм.
   Нижние ${fmt(G.skH)} мм каждой стенки — сплошная полоса, она накладывается на «юбку» основания.
 
 ЭЛЕКТРИКА
-- ${pw.usb?(g.power==='18650'?'Модуль зарядки TP4056 с разъёмом USB-C (26 × 17 мм) и аккумулятор 18650 в держателе.':'Плата-гнездо USB-C 5 В (с резисторами 5,1 кОм на CC, чтобы зарядки отдавали питание).'):'Держатель '+pw.name+'.'}
-- ${g.sw?'Движковый выключатель SS12D00 (движок выходит в прорезь на нижней грани).':'Без выключателя.'}
+- ${pw.usb?(g.power==='18650'?'Модуль зарядки TP4056 с разъёмом USB-C (около 17 × 28 мм) и аккумулятор 18650 в держателе.':'Плата-гнездо USB-C 5 В (около 12 × 16 мм, с резисторами 5,1 кОм на CC, чтобы зарядки отдавали питание).'):'Держатель '+pw.name+' ('+pw.holder.join(' × ')+' мм).'}
+- ${SWd? SWd.name+'. Ставится на правый бок основания.' : 'Без выключателя.'}
 - ${ledTxt}
 - Резистор последовательно со светодиодом: примерно ${pw.R} (ток около 20 мА; R = (U − 3 В) / 0,02 А).
-- Провода от светодиода проходят внутри ножки в коробку.
+- Провода: МГТФ 0,07–0,12 мм² или эмальпровод; к светодиоду — два тонких провода через ножку.
+
+ЧТО ГДЕ ВНУТРИ КОРОБКИ
+${LY.pocket?`- Отсек батареек в центре: держатель вставляется через люк в задней стенке открытой стороной к люку.
+  Приклейте дно держателя к потолку отсека (двусторонний скотч). Провода держателя выходят через прорезь в правой стенке отсека.
+`:''}${LY.board?`- Плата ${g.power==='18650'?'зарядки':'USB-C'} — на площадке у нижней стенки, между двумя направляющими. Торец разъёма упирается в перегородку 0,8 мм,
+  снаружи в стенке карман под штекер, поэтому кабель входит до конца. Приклейте плату каплей термоклея.
+`:''}${SWd?`- Выключатель — в правом боку, ${SWd.round?'гайками':'защёлками'} на стенку светильника и перегородку коробки (вместе ${fmt(Math.max(g.T,SWd.total))} мм).
+`:''}- Провода идут по свободному кольцу между отсеком и стенками пирамиды; от центра крышки к правому краю есть канавка 1,2 мм.
+  Резистор спаяйте прямо на выводе выключателя или платы и заизолируйте термоусадкой.
 
 СБОРКА
-1. Вклейте ${pw.usb?'плату USB-C':'держатель батареек'}${g.sw?' и выключатель':''} в коробку напротив прорезей на нижней грани, спаяйте схему.
-2. Протяните провода светодиода через ножку, закрепите светодиод на кончике (светом к стене).
-3. Вставьте крышку в коробку и прикрутите 4 саморезами M2×8 в угловые бобышки.
-4. Приложите стенки нижней полосой к «юбке» основания: сначала правую и левую, затем нижнюю и верхнюю — они длинные и закрывают торцы боковых.
-   ${g.wallScrews?'Закрепите каждую стенку 2 саморезами M2×6 (всего 8) через отверстия в полосе; в коробке под них есть бобышки.':'Приклейте полосы к бокам коробки (суперклей-гель или эпоксидка).'}
+1. ${[pw.usb?'Вклейте плату в площадку у нижней стенки':'', LY.pocket?'вклейте держатель в отсек':'', SWd?'поставьте выключатель в правый бок':''].filter(Boolean).join(', ').replace(/^./,c=>c.toUpperCase())}. Спаяйте схему: ${pw.usb?'разъём/модуль':'батарейки'} → ${SWd?'выключатель → ':''}резистор → светодиод.
+2. Протяните провода светодиода через ножку и канавку крышки, закрепите светодиод на кончике (светом к стене).
+3. Вставьте крышку в коробку и прикрутите 4 саморезами M2×8 в угловые стойки.
+${LY.door?'   Люк батареек ставится в заднюю стенку заподлицо и крепится 2 саморезами M2×6. Прорезь у края — чтобы подцепить его отвёрткой.\n':''}4. Приложите стенки нижней полосой к «юбке» основания: сначала правую и левую, затем нижнюю и верхнюю — они длинные и закрывают торцы боковых.
+   ${g.wallScrews?'Закрепите каждую стенку 2 саморезами M2×6 (всего 8) через отверстия в полосе.':'Приклейте полосы к бокам коробки (суперклей-гель или эпоксидка).'}
    В углах склейте стенки по торцам верхней и нижней полосы${st.S.stripped?' (и по торцевым полоскам там, где они есть)':''}.
 5. Повесьте светильник на 2 самореза через пазы-«замочные скважины» на задней стенке.
-   Чтобы добраться до электрики, снимите светильник, выкрутите 4 самореза крышки и вытяните крышку с ножкой вперёд.
+   ${LY.door?'Батарейки меняются так: снимите светильник со стены и откройте люк сзади.\n   ':''}Чтобы добраться до электрики, выкрутите 4 самореза крышки и вытяните крышку с ножкой вперёд.
 
 Ножка сделана по форме «слепого» конуса: лучи, которые через неё проходят, всё равно попали бы на сам светильник,
 поэтому на стене от неё тени нет. Тонкие провода от светодиода дают еле заметные линии — ведите их по диагонали к углу.
@@ -1184,7 +1294,7 @@ function loadFile(file){
   const url=URL.createObjectURL(file), im=new Image();
   im.onload=()=>{ st.img=im; st.imgId=(st.imgId||0)+1; st.name=file.name.replace(/\.[^.]+$/,'')||'shadow'; st.rasterKey=''; afterLoad(); };
   im.onerror=()=>toast('Не удалось открыть картинку.',true); im.src=url; }
-function afterLoad(){ pending=0; run(); }
+function afterLoad(){ showWelcome(false); pending=0; run(); }
 $('#file').addEventListener('change',e=>{ loadFile(e.target.files[0]); e.target.value=''; });
 const vp=$('#vp');
 ['dragenter','dragover'].forEach(t=>vp.addEventListener(t,e=>{ e.preventDefault(); vp.classList.add('drag'); }));
@@ -1192,14 +1302,40 @@ const vp=$('#vp');
 vp.addEventListener('drop',e=>loadFile(e.dataTransfer.files[0]));
 document.addEventListener('paste',e=>{ const it=[...(e.clipboardData?.items||[])].find(i=>i.type.startsWith('image/')); if(it) loadFile(it.getAsFile()); });
 
-function sample(){ // a sun: rays start under the lamp, so every ray is tied to the base
-  const S=1000, c=document.createElement('canvas'); c.width=S; c.height=S; const g=c.getContext('2d'); g.fillStyle='#000'; g.translate(S/2,S/2);
-  const n=16; for(let i=0;i<n;i++){ const a=i/n*Math.PI*2, long=i%2===0, r1=110, r2=long?470:350, w1=long?0.15:0.11, hw=long?9:7;
-    const ux=Math.cos(a), uy=Math.sin(a), nx=-uy, ny=ux;
-    g.beginPath(); g.moveTo(r1*Math.cos(a-w1),r1*Math.sin(a-w1)); g.lineTo(r2*ux-hw*nx,r2*uy-hw*ny);
-    g.arc(r2*ux,r2*uy,hw,a-Math.PI/2,a+Math.PI/2); g.lineTo(r1*Math.cos(a+w1),r1*Math.sin(a+w1)); g.closePath(); g.fill(); }
-  st.img=c; st.imgId=(st.imgId||0)+1; st.name='солнце'; st.rasterKey=''; afterLoad(); }
-$('#sample').addEventListener('click',sample);
+/* built-in samples: each is designed so the parts near the lamp start under it and stay tied to the base */
+const SAMPLES=[
+  { id:'sun', name:'Солнце', draw(g){ const n=16; for(let i=0;i<n;i++){ const a=i/n*Math.PI*2, long=i%2===0, r1=110, r2=long?470:350, w1=long?0.15:0.11, hw=long?9:7;
+      const ux=Math.cos(a), uy=Math.sin(a), nx=-uy, ny=ux;
+      g.beginPath(); g.moveTo(r1*Math.cos(a-w1),r1*Math.sin(a-w1)); g.lineTo(r2*ux-hw*nx,r2*uy-hw*ny);
+      g.arc(r2*ux,r2*uy,hw,a-Math.PI/2,a+Math.PI/2); g.lineTo(r1*Math.cos(a+w1),r1*Math.sin(a+w1)); g.closePath(); g.fill(); } } },
+  { id:'flake', name:'Снежинка', draw(g){ g.lineCap='round'; g.strokeStyle='#000';
+      for(let i=0;i<6;i++){ const a=i/6*Math.PI*2+Math.PI/6, ux=Math.cos(a), uy=Math.sin(a), line=(x0,y0,x1,y1,w)=>{ g.lineWidth=w; g.beginPath(); g.moveTo(x0,y0); g.lineTo(x1,y1); g.stroke(); };
+        line(90*ux,90*uy,450*ux,450*uy,24);
+        for(const [r,len,w] of [[210,120,18],[310,95,16],[395,60,14]]) for(const sgn of [-1,1]){ const b=a+sgn*Math.PI/3, px=r*ux, py=r*uy; line(px,py,px+len*Math.cos(b),py+len*Math.sin(b),w); }
+        g.beginPath(); g.arc(450*ux,450*uy,20,0,7); g.fill(); } } },
+  { id:'leaves', name:'Ветви', draw(g){ g.lineCap='round';
+      for(let i=0;i<8;i++){ const a=i/8*Math.PI*2+0.2, ux=Math.cos(a), uy=Math.sin(a), nx=-uy, ny=ux, bend=60*(i%2?1:-1);
+        const P=t=>{ const r=100+360*t, off=bend*Math.sin(t*Math.PI); return [r*ux+off*nx, r*uy+off*ny]; };
+        g.lineWidth=12; g.beginPath(); for(let k=0;k<=30;k++){ const [x,y]=P(k/30); k?g.lineTo(x,y):g.moveTo(x,y); } g.stroke();
+        for(let k=0;k<6;k++){ const t=0.3+k*0.12, [x,y]=P(t), [x2,y2]=P(t+0.01), ang=Math.atan2(y2-y,x2-x)+(k%2?0.9:-0.9), L=46-k*3;
+          g.save(); g.translate(x,y); g.rotate(ang); g.beginPath(); g.ellipse(L*0.55,0,L*0.6,L*0.24,0,0,7); g.fill(); g.restore(); } } } },
+  { id:'night', name:'Звёздное небо', draw(g){ // loose stars and a moon: shows how the struts work
+      let seed=5; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+      const star=(x,y,r)=>{ g.beginPath(); for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, rr=i%2?r*0.45:r; g.lineTo(x+rr*Math.cos(a),y+rr*Math.sin(a)); } g.closePath(); g.fill(); };
+      for(let i=0;i<22;i++){ const a=rnd()*Math.PI*2, r=190+rnd()*270; star(r*Math.cos(a),r*Math.sin(a),14+rnd()*16); }
+      g.beginPath(); g.arc(300,-300,95,0,7); g.fill(); g.globalCompositeOperation='destination-out'; g.beginPath(); g.arc(340,-335,85,0,7); g.fill(); g.globalCompositeOperation='source-over'; } }
+];
+function sampleCanvas(id){ const smp=SAMPLES.find(x=>x.id===id)||SAMPLES[0], S=1000, c=document.createElement('canvas'); c.width=S; c.height=S; const g=c.getContext('2d'); g.fillStyle='#000'; g.translate(S/2,S/2); smp.draw(g); return {c,smp}; }
+function loadSample(id){ const {c,smp}=sampleCanvas(id); st.img=c; st.imgId=(st.imgId||0)+1; st.name=smp.name.toLowerCase(); st.rasterKey=''; afterLoad(); }
+function showWelcome(v){ $('#welcome').hidden=!v; $('#welcomeClose').hidden=!st.img; }
+(()=>{ const host=$('#samples'); for(const smp of SAMPLES){ const b=document.createElement('button'); b.type='button'; b.className='sample';
+    const cv2=document.createElement('canvas'); cv2.width=180; cv2.height=180; const x=cv2.getContext('2d');
+    const gr=x.createRadialGradient(90,90,6,90,90,120); gr.addColorStop(0,'#ffeec8'); gr.addColorStop(0.55,'#b9a585'); gr.addColorStop(1,'#3d352b'); x.fillStyle=gr; x.fillRect(0,0,180,180);
+    const {c}=sampleCanvas(smp.id); x.globalAlpha=0.82; x.filter='blur(1px)'; x.drawImage(c,6,6,168,168); x.filter='none'; x.globalAlpha=1;
+    x.fillStyle='#f3eee4'; x.shadowColor='rgba(0,0,0,.4)'; x.shadowBlur=6; x.fillRect(74,74,32,32);
+    const t=document.createElement('span'); t.textContent=smp.name; b.append(cv2,t); b.addEventListener('click',()=>loadSample(smp.id)); host.append(b); } })();
+$('#sample').addEventListener('click',()=>showWelcome(true));
+$('#welcomeClose').addEventListener('click',()=>showWelcome(false));
 $('#cmpBtn').addEventListener('click',()=>{ st.tab='wall'; st.wsub='compare';
   document.querySelectorAll('[role=tab]').forEach(x=>x.setAttribute('aria-selected',x.dataset.tab==='wall'));
   document.querySelectorAll('[data-wsub]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.wsub==='compare')); draw(); });
@@ -1209,15 +1345,14 @@ document.querySelectorAll('[role=tab]').forEach(b=>b.addEventListener('click',()
   document.querySelectorAll('[role=tab]').forEach(x=>x.setAttribute('aria-selected',x===b)); if(st.tab==='3d') ensure3D(); draw(); report(); }));
 document.querySelectorAll('[data-sub]').forEach(b=>b.addEventListener('click',()=>{ st.sub=b.dataset.sub; document.querySelectorAll('[data-sub]').forEach(x=>x.setAttribute('aria-pressed',x===b)); draw(); }));
 document.querySelectorAll('[data-ex]').forEach(b=>b.addEventListener('click',()=>{ st.explode=b.dataset.ex==='1'; document.querySelectorAll('[data-ex]').forEach(x=>x.setAttribute('aria-pressed',x===b)); placeParts(); render3D(); }));
-document.querySelectorAll('[data-wsub]').forEach(b=>b.addEventListener('click',()=>{ st.wsub=b.dataset.wsub; document.querySelectorAll('[data-ex]').forEach(b=>b.addEventListener('click',()=>{ st.explode=b.dataset.ex==='1'; document.querySelectorAll('[data-ex]').forEach(x=>x.setAttribute('aria-pressed',x===b)); placeParts(); render3D(); }));
-document.querySelectorAll('[data-wsub]').forEach(x=>x.setAttribute('aria-pressed',x===b)); draw(); }));
+document.querySelectorAll('[data-wsub]').forEach(b=>b.addEventListener('click',()=>{ st.wsub=b.dataset.wsub; document.querySelectorAll('[data-wsub]').forEach(x=>x.setAttribute('aria-pressed',x===b)); draw(); }));
 
 new ResizeObserver(()=>{ if(st.tab!=='3d') draw(); }).observe(vp);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);
 new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-labels(); sample();
+labels(); showWelcome(true); draw(); updateStatus();
+window.__lamp={ get T3(){ return T3; }, st, render3D };   // for tests
 })();
 </script>
-
 </body>
 </html>

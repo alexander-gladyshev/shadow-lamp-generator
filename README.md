@@ -6,7 +6,16 @@
 
 > Закрытый проект для личного использования. См. [LICENSE](LICENSE).
 
-## Запуск
+## Сайт
+
+Генератор публикуется на GitHub Pages при каждом push в `main`:
+**https://alexander-gladyshev.github.io/shadow-lamp-generator/**
+(трассировщик для телефона: `…/tools/png-to-svg.html`).
+
+Деплой описан в `.github/workflows/pages.yml`. Один раз нужно включить в репозитории
+**Settings → Pages → Build and deployment → Source: GitHub Actions**.
+
+## Запуск локально
 
 Откройте `index.html` в браузере (Chrome, Safari, Firefox).
 

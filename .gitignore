@@ -6,3 +6,4 @@ tests/out/
 *.3mf
 *.zip
 __pycache__/
+.gh-token

@@ -111,31 +111,135 @@ select,input[type=number]{width:100%;font:14px var(--f-body);color:var(--fg);bac
   .viewport{flex:none;height:60vh}
   .info{grid-template-columns:minmax(0,1fr)}
 }
+
+/* ---- v2 shell: simple/expert modes, stage as hero, findings in a drawer ---- */
+:root{ --glass:rgba(255,255,255,.84); --ui-shadow:0 10px 30px rgba(20,24,32,.14); }
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){ --glass:rgba(23,26,32,.84); --ui-shadow:0 10px 30px rgba(0,0,0,.45); }}
+:root[data-theme="dark"]{ --glass:rgba(23,26,32,.84); --ui-shadow:0 10px 30px rgba(0,0,0,.45); }
+.app{grid-template-columns:318px minmax(0,1fr)}
+.bar{gap:14px;flex-wrap:nowrap}
+.brand{align-items:center;gap:10px;flex-wrap:nowrap}
+.mark{flex:none;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle,#fffaf0 0 16%,var(--lamp) 34%,transparent 72%);box-shadow:0 0 16px color-mix(in srgb,var(--lamp) 60%,transparent)}
+.mode{margin-right:auto}
+.btn.ghost{background:transparent}
+.status{appearance:none;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:999px;padding:9px 13px;font:500 13px/1 var(--f-body);cursor:pointer;white-space:nowrap}
+.status i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.status.ok i{background:var(--ok)} .status.caution i{background:var(--warn)} .status.warn i{background:var(--danger)}
+.status[aria-expanded="true"]{border-color:var(--muted)}
+.side{padding:0;display:flex;flex-direction:column}
+.quick{padding:18px 18px 10px;display:flex;flex-direction:column;gap:20px}
+.kicker{margin:0 0 4px;font:600 11px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--lamp-ink)}
+.qgroup{display:flex;flex-direction:column;gap:10px}
+.qgroup h3{margin:0;font:600 13.5px/1.2 var(--f-body)}
+.choice{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.choice button{appearance:none;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:10px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;min-width:0}
+.choice button b{font:600 16px/1 var(--f-display)}
+.choice.three button b{font:500 12px/1.1 var(--f-body);white-space:nowrap}
+.choice button span{font:11.5px/1 var(--f-mono);color:var(--muted)}
+.choice button[aria-pressed="true"]{border-color:var(--lamp);box-shadow:inset 0 0 0 1px var(--lamp);background:var(--surface)}
+.choice button:focus-visible,.linkbtn:focus-visible,.status:focus-visible,summary:focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
+.linkbtn{appearance:none;border:0;background:none;color:var(--lamp-ink);font:500 13px/1.3 var(--f-body);padding:2px 0;cursor:pointer;text-align:left}
+.linkbtn:hover{text-decoration:underline}
+details.sec{padding:0;display:block;border-bottom:1px solid var(--line)}
+details.sec>summary{list-style:none;cursor:pointer;padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary::after{content:"";width:7px;height:7px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(45deg);margin-right:3px}
+details.sec[open]>summary::after{transform:rotate(-135deg)}
+.secb{padding:0 18px 16px;display:flex;flex-direction:column;gap:11px}
+.side-foot{margin-top:auto;padding:12px 18px 14px;border-top:1px solid var(--line);display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.side-foot .toast{flex-basis:100%;min-height:0}
+body.simple .expert{display:none!important}
+body:not(.simple) .simple-only{display:none!important}
+.main{position:relative}
+.viewport{flex:1 1 auto;min-height:420px}
+.stagebar{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;pointer-events:none;z-index:2}
+.stagebar>*{pointer-events:auto}
+.stagebar .tabs,.stagebar .seg{background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:var(--ui-shadow);border-color:transparent}
+.legend{background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-color:transparent}
+.note3d{top:auto;bottom:10px;right:10px;background:var(--glass);border-color:transparent}
+.drawer{position:absolute;top:64px;right:12px;bottom:12px;width:min(380px,calc(100% - 24px));background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--ui-shadow);padding:14px;display:flex;flex-direction:column;gap:12px;overflow:auto;z-index:3}
+.dhead{display:flex;justify-content:space-between;align-items:center}
+.dhead h2{margin:0;font:600 14px/1 var(--f-body)}
+.x{appearance:none;border:0;background:none;color:var(--muted);font:400 22px/1 var(--f-body);cursor:pointer;padding:0 4px}
+.drawer .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+.drawer .stats dd{white-space:normal;font-size:14px;overflow-wrap:anywhere}
+.drawer .warnings{max-height:none;overflow:visible}
+@media (max-width:960px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .bar{flex-wrap:wrap}
+  .mode{margin-right:0}
+  .viewport{height:62vh;min-height:360px}
+  .stagebar .tabs{max-width:100%;overflow-x:auto}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
 
-<div class="app">
+<div class="app" id="app">
   <header class="bar">
     <div class="brand">
+      <span class="mark" aria-hidden="true"></span>
       <h1>Генератор теневого бра</h1>
-      <span class="sub">картинка → силуэт → основание с электрикой, ножка и 4 стенки → STL</span>
+    </div>
+    <div class="seg mode" role="group" aria-label="Режим">
+      <button data-mode="simple" aria-pressed="true">Просто</button>
+      <button data-mode="expert" aria-pressed="false">Все настройки</button>
     </div>
     <div class="actions">
-      <label class="btn primary" for="file">Загрузить картинку</label>
+      <button class="status" id="statusBtn" type="button" aria-expanded="false" aria-controls="drawer"><i></i><span id="statusTxt">—</span></button>
+      <label class="btn" for="file">Загрузить картинку</label>
       <input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
-      <button class="btn" id="sample" type="button">Пример</button>
-      <span class="sep" aria-hidden="true"></span>
-      <button class="btn" id="dlSvg" type="button" hidden>SVG</button>
-      <button class="btn" id="dlStl" type="button" hidden>Детали для печати (STL)</button>
-      <button class="btn" id="copySvg" type="button">Копировать SVG</button>
+      <button class="btn ghost" id="sample" type="button">Пример</button>
+      <button class="btn primary" id="dlStl" type="button" hidden>Скачать для печати</button>
     </div>
   </header>
 
   <aside class="side">
-    <section class="sec">
-      <h2><b>1</b>Картинка</h2>
+    <div class="quick simple-only">
+      <div class="qhead">
+        <p class="kicker">Быстрая настройка</p>
+        <p class="hint">Загрузите картинку и выберите размер — остальное подобрано. Тонкая настройка в режиме «Все настройки».</p>
+      </div>
+      <div class="qgroup">
+        <h3>Картинка</h3>
+        <div class="row"><div class="lab"><label for="qThr">Чувствительность</label><output id="oqThr"></output></div><input type="range" id="qThr" min="2" max="98" value="50" data-target="thr"></div>
+        <div class="row"><div class="lab"><label for="qGrow">Толщина линий</label><output id="oqGrow"></output></div><input type="range" id="qGrow" min="-6" max="10" value="0" data-target="grow"></div>
+        <label class="check"><input type="checkbox" id="qInvert" data-target="invert"> Фигура светлая на тёмном</label>
+      </div>
+      <div class="qgroup">
+        <h3>Тень на стене</h3>
+        <div class="row"><div class="lab"><label for="qImgW">Размер картинки</label><output id="oqImgW"></output></div><input type="range" id="qImgW" min="60" max="900" step="5" value="300" data-target="imgW"></div>
+      </div>
+      <div class="qgroup">
+        <h3>Светильник</h3>
+        <div class="choice" id="qSize" role="group" aria-label="Размер светильника">
+          <button data-size="s"><b>S</b><span>80 мм</span></button>
+          <button data-size="m" aria-pressed="true"><b>M</b><span>100 мм</span></button>
+          <button data-size="l"><b>L</b><span>130 мм</span></button>
+        </div>
+        <div class="row"><label class="lab" for="qPower">Питание</label>
+          <select id="qPower" data-target="power">
+            <option value="usb">USB-C, 5 В</option>
+            <option value="aaa">2 × AAA</option>
+            <option value="aa">2 × AA</option>
+            <option value="18650">18650 + зарядка USB-C</option>
+          </select></div>
+      </div>
+      <div class="qgroup">
+        <h3>Перемычки для висящих кусочков</h3>
+        <div class="choice three" id="qBridge" role="group" aria-label="Перемычки">
+          <button data-bridge="nearest"><b>Кратчайшие</b></button>
+          <button data-bridge="down"><b>Лучи</b></button>
+          <button data-bridge="ring"><b>Кольца</b></button>
+        </div>
+        <button class="linkbtn" id="qCmp" type="button">Сравнить варианты на стене →</button>
+      </div>
+    </div>
+
+    <details class="sec expert" open>
+      <summary><h2><b>1</b>Картинка</h2></summary>
+      <div class="secb">
       <div class="two">
         <div class="row"><label class="lab" for="source">Фигура</label>
           <select id="source" data-stage="trace">
@@ -161,20 +265,24 @@ select,input[type=number]{width:100%;font:14px var(--f-body);color:var(--fg);bac
         <div class="row"><div class="lab"><label for="simplify">Упрощение</label><output id="oSimp"></output></div><input type="range" id="simplify" min="1" max="40" value="6" data-stage="trace"></div>
       </div>
       <label class="check"><input type="checkbox" id="bez" checked data-stage="trace"> Плавные кривые (Безье)</label>
-    </section>
+    </div>
+    </details>
 
-    <section class="sec">
-      <h2><b>2</b>Картинка на стене</h2>
+    <details class="sec expert">
+      <summary><h2><b>2</b>Картинка на стене</h2></summary>
+      <div class="secb">
       <div class="row"><div class="lab"><label for="imgW">Ширина тени</label><output id="oImgW"></output></div><input type="range" id="imgW" min="60" max="900" step="5" value="300" data-stage="field"></div>
       <div class="two">
         <div class="row"><div class="lab"><label for="offX">Сдвиг X</label><output id="oOffX"></output></div><input type="range" id="offX" min="-200" max="200" value="0" data-stage="strip"></div>
         <div class="row"><div class="lab"><label for="offY">Сдвиг Y</label><output id="oOffY"></output></div><input type="range" id="offY" min="-200" max="200" value="0" data-stage="strip"></div>
       </div>
       <div class="row"><div class="lab"><label for="rot">Поворот</label><output id="oRot"></output></div><input type="range" id="rot" min="-180" max="180" value="0" data-stage="strip"></div>
-    </section>
+    </div>
+    </details>
 
-    <section class="sec">
-      <h2><b>3</b>Светильник</h2>
+    <details class="sec expert">
+      <summary><h2><b>3</b>Светильник</h2></summary>
+      <div class="secb">
       <div class="two">
         <div class="row"><label class="lab" for="A">Ширина основания, мм</label><input type="number" id="A" min="40" max="250" value="100" data-stage="strip"></div>
         <div class="row"><label class="lab" for="B">Высота основания, мм</label><input type="number" id="B" min="40" max="250" value="100" data-stage="strip"></div>
@@ -187,10 +295,12 @@ select,input[type=number]{width:100%;font:14px var(--f-body);color:var(--fg);bac
           <option value="5">5 мм, «соломенная шляпа»</option>
         </select></div>
       <p class="hint">Светодиод сидит на кончике ножки и смотрит на стену. Ножка сужается к кончику и целиком прячется в «слепой» зоне света за корпусом, поэтому тени не даёт.</p>
-    </section>
+    </div>
+    </details>
 
-    <section class="sec">
-      <h2><b>4</b>Основание и электрика</h2>
+    <details class="sec expert">
+      <summary><h2><b>4</b>Основание и электрика</h2></summary>
+      <div class="secb">
       <div class="row"><label class="lab" for="power">Питание</label>
         <select id="power" data-stage="strip">
           <option value="usb" selected>USB-C, 5 В</option>
@@ -203,10 +313,12 @@ select,input[type=number]{width:100%;font:14px var(--f-body);color:var(--fg);bac
         <label class="check" style="align-self:end;padding-bottom:8px"><input type="checkbox" id="sw" checked data-stage="strip"> Выключатель</label>
       </div>
       <p class="hint">Основание — коробка-пирамида у стены: внутри батарейки или плата USB-C, выключатель и резистор. Разъём и движок выключателя выходят вниз через окошки в нижней стенке. Провода идут вверх внутри ножки.</p>
-    </section>
+    </div>
+    </details>
 
-    <section class="sec">
-      <h2><b>5</b>Стенки</h2>
+    <details class="sec expert">
+      <summary><h2><b>5</b>Стенки</h2></summary>
+      <div class="secb">
       <div class="two">
         <div class="row"><label class="lab" for="T">Толщина, мм</label><input type="number" id="T" min="0.8" max="3" step="0.1" value="1.6" data-stage="strip"></div>
         <div class="row"><label class="lab" for="clr">Зазор в углах, мм</label><input type="number" id="clr" min="0" max="0.8" step="0.05" value="0.2" data-stage="strip"></div>
@@ -214,10 +326,12 @@ select,input[type=number]{width:100%;font:14px var(--f-body);color:var(--fg);bac
       <label class="check"><input type="checkbox" id="wallScrews" checked data-stage="strip"> Крепить к основанию винтами M2 (иначе клей)</label>
       <label class="check"><input type="checkbox" id="openCorners" checked data-stage="strip"> Открытые углы (без полосок на торцах)</label>
       <p class="hint">Низ каждой стенки накладывается на невысокую «юбку» основания у самой стены. Выше основание сужается пирамидой и прячется в слепой зоне света, поэтому тёмной рамки вокруг светильника почти нет. Углы стенок соединяются только верхней и нижней полосой.</p>
-    </section>
+    </div>
+    </details>
 
-    <section class="sec">
-      <h2><b>6</b>Печать</h2>
+    <details class="sec expert">
+      <summary><h2><b>6</b>Печать</h2></summary>
+      <div class="secb">
       <div class="two">
         <div class="row"><label class="lab" for="minDet">Мин. деталь, мм</label><input type="number" id="minDet" min="0" max="4" step="0.1" value="0.8" data-stage="strip"></div>
         <div class="row"><label class="lab" for="ppm">Точность стенки</label>
@@ -237,50 +351,57 @@ select,input[type=number]{width:100%;font:14px var(--f-body);color:var(--fg);bac
       <button class="btn small" id="cmpBtn" type="button">Сравнить варианты на стене</button>
       <div class="row"><label class="lab" for="bridgeW">Толщина перемычки, мм</label><input type="number" id="bridgeW" min="0.6" max="4" step="0.1" value="1.2" data-stage="strip"></div>
       <p class="hint">«Кратчайшие» — к ближайшему месту узора. «Лучи» идут по стенке вниз к основанию и на стене выглядят как лучи от светильника. «Кольца» сначала соединяют кусочки вбок (на стене — рамки вокруг светильника), остальное добивают лучами. На развёртке перемычки синие.</p>
+    </div>
+    </details>
+  
+    <div class="side-foot">
+      <button class="linkbtn" id="dlSvg" type="button" hidden>Скачать SVG тени</button>
+      <button class="linkbtn" id="copySvg" type="button">Копировать SVG</button>
       <div class="toast" id="toast" role="status"></div>
-    </section>
+    </div>
   </aside>
 
   <main class="main">
-    <div class="viewbar">
-      <div class="tabs" role="tablist" aria-label="Вид">
-        <button role="tab" data-tab="pic" aria-selected="false">Картинка</button>
-        <button role="tab" data-tab="wall" aria-selected="true">Стена</button>
-        <button role="tab" data-tab="dev" aria-selected="false">Развёртка стенок</button>
-        <button role="tab" data-tab="3d" aria-selected="false">3D</button>
-      </div>
-      <div class="seg" id="segPic" hidden>
-        <button data-sub="src" aria-pressed="false">Исходник</button>
-        <button data-sub="mask" aria-pressed="false">Маска</button>
-        <button data-sub="trace" aria-pressed="true">Контуры</button>
-      </div>
-      <div class="seg" id="segWall">
-        <button data-wsub="shadow" aria-pressed="true">Итоговая тень</button>
-        <button data-wsub="layout" aria-pressed="false">Раскладка</button>
-        <button data-wsub="compare" aria-pressed="false">Сравнить перемычки</button>
-      </div>
-      <div class="seg" id="seg3d" hidden>
-        <button data-ex="0" aria-pressed="true">Собрано</button>
-        <button data-ex="1" aria-pressed="false">Разнести детали</button>
-      </div>
-    </div>
     <div class="viewport" id="vp">
       <canvas id="cv"></canvas>
       <div id="host3d" hidden></div>
+      <div class="stagebar">
+        <div class="tabs" role="tablist" aria-label="Вид">
+          <button role="tab" data-tab="wall" aria-selected="true">Тень на стене</button>
+          <button role="tab" data-tab="dev" aria-selected="false">Стенки</button>
+          <button role="tab" data-tab="3d" aria-selected="false">3D</button>
+          <button role="tab" data-tab="pic" aria-selected="false">Картинка</button>
+        </div>
+        <div class="seg" id="segPic" hidden>
+          <button data-sub="src" aria-pressed="false">Исходник</button>
+          <button data-sub="mask" aria-pressed="false">Маска</button>
+          <button data-sub="trace" aria-pressed="true">Контуры</button>
+        </div>
+        <div class="seg" id="segWall">
+          <button data-wsub="shadow" aria-pressed="true">Вечером</button>
+          <button data-wsub="layout" aria-pressed="false">Раскладка</button>
+          <button data-wsub="compare" aria-pressed="false">Перемычки</button>
+        </div>
+        <div class="seg" id="seg3d" hidden>
+          <button data-ex="0" aria-pressed="true">Собрано</button>
+          <button data-ex="1" aria-pressed="false">Разнести</button>
+        </div>
+      </div>
       <div class="note3d" id="note3d" hidden>Мышь: вращать · колесо: масштаб · правая кнопка: сдвиг</div>
       <div class="overlay" id="ov3d" hidden></div>
       <div class="legend" id="legend" hidden></div>
-    </div>
-    <div class="info">
-      <dl class="stats">
-        <div><dt>Корпус, мм</dt><dd id="sBody">—</dd></div>
-        <div><dt>Тень, мм</dt><dd id="sShadow">—</dd></div>
-        <div><dt>Картинки в тени</dt><dd id="sCover">—</dd></div>
-        <div><dt>Выпадут</dt><dd id="sFloat">—</dd></div>
-        <div><dt>Тонких мест</dt><dd id="sThin">—</dd></div>
-        <div><dt>Треугольников</dt><dd id="sTris">—</dd></div>
-      </dl>
-      <ul class="warnings" id="warn"></ul>
+      <aside class="drawer" id="drawer" hidden aria-label="Проверка модели">
+        <div class="dhead"><h2>Проверка модели</h2><button class="x" id="drawerClose" type="button" aria-label="Закрыть">×</button></div>
+        <dl class="stats">
+          <div><dt>Габарит, мм</dt><dd id="sBody">—</dd></div>
+          <div><dt>Тень, мм</dt><dd id="sShadow">—</dd></div>
+          <div><dt>Картинки в тени</dt><dd id="sCover">—</dd></div>
+          <div><dt>Выпадут</dt><dd id="sFloat">—</dd></div>
+          <div><dt>Тонких мест</dt><dd id="sThin">—</dd></div>
+          <div><dt>Треугольников</dt><dd id="sTris">—</dd></div>
+        </dl>
+        <ul class="warnings" id="warn"></ul>
+      </aside>
     </div>
   </main>
 </div>
@@ -309,6 +430,7 @@ function GP(){
     minDet:Math.max(0,num('minDet',0.8)), ppm:+$('#ppm').value };
 }
 function labels(){
+  if(typeof syncQuick==='function') try{ syncQuick(); }catch(e){}
   const p=TP(), g=GP();
   $('#oThr').textContent=Math.round(p.thr*100)+'%';
   $('#oBlur').textContent=p.blur? p.blur+' пкс':'нет';
@@ -618,7 +740,8 @@ function hitPanel(wx,wy,G,PP){
 }
 
 /* ================= report ================= */
-function report(){
+function report(){ reportInner(); updateStatus(); }
+function reportInner(){
   const ul=$('#warn'); ul.textContent=''; const R=st.R, S=st.S, cov=st.cov;
   const add=(kind,label,text)=>{ const li=document.createElement('li'); const c=document.createElement('span'); c.className='chip '+kind; c.textContent=label; const t=document.createElement('span'); t.textContent=text; li.append(c,t); ul.append(li); };
   const set=(id,v)=>$(id).textContent=v;
@@ -685,34 +808,64 @@ function drawPic(cw,ch,dpr){
 
 /* exact shadow simulation: for every point of the room wall, trace the ray back to the LED */
 function wallExtent(S){ const g=S.g, G=S.G; return Math.max(imageExtent(g), G.ao*1.25, G.bo*1.25)*1.08; }
+function plaster(w,h){ // soft plaster texture, cached per size
+  const key=w+'x'+h; if(st.pl&&st.pl.key===key) return st.pl.a;
+  let seed=11; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  const cs=Math.max(4,Math.round(w/70)), W=Math.ceil(w/cs)+2, Hh=Math.ceil(h/cs)+2, grid=new Float32Array(W*Hh); for(let i=0;i<grid.length;i++) grid[i]=rnd();
+  const a=new Float32Array(w*h), sm=t=>t*t*(3-2*t);
+  for(let y=0;y<h;y++){ const gy=y/cs, y0=gy|0, fy=sm(gy-y0);
+    for(let x=0;x<w;x++){ const gx=x/cs, x0=gx|0, fx=sm(gx-x0), k=y0*W+x0;
+      const v=(grid[k]*(1-fx)+grid[k+1]*fx)*(1-fy)+(grid[k+W]*(1-fx)+grid[k+W+1]*fx)*fy;
+      a[y*w+x]=0.955+0.06*v+0.035*(rnd()-0.5); } }
+  st.pl={key,a}; return a; }
 function renderWall(S, rx, ry, rw, rh, dpr, layout, E, budget){
   const g=S.g, G=S.G, {ao,bo,ai,bi}=G, P=S.panels;
   const kOut = 1/(1-G.zPat1/G.H);
   const sc=Math.min(rw,rh)/(2*E), cx=rx+rw/2, cy=ry+rh/2;
   const f=Math.max(1,Math.sqrt(rw*rh*dpr*dpr/budget)); const gw=Math.max(8,Math.round(rw*dpr/f)), gh=Math.max(8,Math.round(rh*dpr/f));
   const smp=sampler(g);
-  const lit=rgb(tok('--wall-lit')), dim=rgb(tok('--wall-dim')), sh=rgb(tok('--wall-shadow'));
+  const lit=[255,238,206], dim=[58,51,42], sh=[26,22,18]; // evening room: warm LED light on plaster
   const fg=rgb(tok('--fg')), mut=rgb(tok('--muted')), dang=rgb(tok('--danger')), bg=rgb(tok('--surface'));
-  const img=layer(gw,gh,d=>{
-    for(let j=0;j<gh;j++){ const wy=(rh/2-(j+0.5)*(rh/gh))/sc;
-      for(let i=0;i<gw;i++){ const wx=((i+0.5)*(rw/gw)-rw/2)/sc, o=(j*gw+i)*4; let col;
-        if(layout){ const v=smp(wx,wy); d[o+3]=255;
+  let img;
+  if(layout){
+    img=layer(gw,gh,d=>{
+      for(let j=0;j<gh;j++){ const wy=(rh/2-(j+0.5)*(rh/gh))/sc;
+        for(let i=0;i<gw;i++){ const wx=((i+0.5)*(rw/gw)-rw/2)/sc, o=(j*gw+i)*4; let col; const v=smp(wx,wy); d[o+3]=255;
           if(!v){ col=bg; } else { const h=hitPanel(wx,wy,G,P); col = (h.kind==='body'||h.kind==='base')?mut : h.kind==='top'?dang : fg; if(col===mut) d[o+3]=110; }
-          d[o]=col[0]; d[o+1]=col[1]; d[o+2]=col[2]; continue; }
-        const r2=wx*wx+wy*wy, bb=Math.pow(Math.pow(G.H/Math.sqrt(G.H*G.H+r2),3),0.55);
-        const h=hitPanel(wx,wy,G,P); let dark=false;
-        if(h.kind==='base'||h.kind==='top'||h.kind==='post') dark=true;
-        else if(h.kind==='panel'){ const p=P[h.side]; const col_=Math.min(p.n-1,Math.max(0,Math.floor((h.u+p.L/2)/p.L*p.n))), row=Math.min(p.SH-1,Math.max(0,Math.floor((h.z-G.zp0)/p.hmm*p.SH)));
-          const idx=row*p.n+col_; dark = p.m[idx] && !p.float[idx]; }
-        if(dark) col=[sh[0]+(dim[0]-sh[0])*0.15*(1-bb), sh[1]+(dim[1]-sh[1])*0.15*(1-bb), sh[2]+(dim[2]-sh[2])*0.15*(1-bb)];
-        else col=[dim[0]+(lit[0]-dim[0])*bb, dim[1]+(lit[1]-dim[1])*bb, dim[2]+(lit[2]-dim[2])*bb];
-        d[o]=col[0]; d[o+1]=col[1]; d[o+2]=col[2]; d[o+3]=255; } } });
+          d[o]=col[0]; d[o+1]=col[1]; d[o+2]=col[2]; } } });
+  } else {
+    /* "evening" render: warm falloff, soft penumbra that grows with distance, plaster texture, vignette */
+    const N=gw*gh, dark=new Float32Array(N), soft=new Float32Array(N), bright=new Float32Array(N);
+    for(let j=0;j<gh;j++){ const wy=(rh/2-(j+0.5)*(rh/gh))/sc;
+      for(let i=0;i<gw;i++){ const wx=((i+0.5)*(rw/gw)-rw/2)/sc, q=j*gw+i;
+        bright[q]=Math.pow(Math.pow(G.H/Math.sqrt(G.H*G.H+wx*wx+wy*wy),3),0.62);
+        const h=hitPanel(wx,wy,G,P);
+        if(h.kind==='base'){ dark[q]=1; soft[q]=0; }
+        else if(h.kind==='top'||h.kind==='post'){ dark[q]=1; soft[q]=0.7; }
+        else if(h.kind==='panel'){ const p=P[h.side]; const c_=Math.min(p.n-1,Math.max(0,Math.floor((h.u+p.L/2)/p.L*p.n))), row=Math.min(p.SH-1,Math.max(0,Math.floor((h.z-G.zp0)/p.hmm*p.SH)));
+          const idx=row*p.n+c_; dark[q]=(p.m[idx]&&!p.float[idx])?1:0; soft[q]=Math.min(1,Math.pow(h.z/G.H,1.4)); } } }
+    const A=boxBlur(Float32Array.from(dark),gw,gh,1), Rb=Math.max(2,Math.round(gw/110)), Bv=boxBlur(Float32Array.from(dark),gw,gh,Rb), noise=plaster(gw,gh);
+    const shade=[sh[0]+(dim[0]-sh[0])*0.18, sh[1]+(dim[1]-sh[1])*0.18, sh[2]+(dim[2]-sh[2])*0.18];
+    img=layer(gw,gh,d=>{ for(let j=0;j<gh;j++) for(let i=0;i<gw;i++){ const q=j*gw+i, o=q*4, sf=soft[q], m=Math.min(1,(A[q]*(1-sf)+Bv[q]*sf)*0.92), b=bright[q];
+      const vx=i/gw-0.5, vy=j/gh-0.5, vig=1-0.35*(vx*vx+vy*vy), n=noise[q]*vig;
+      for(let c=0;c<3;c++){ const base=dim[c]+(lit[c]-dim[c])*b; d[o+c]=(base*(1-m)+shade[c]*m)*n; } d[o+3]=255; } });
+  }
   ctx.imageSmoothingEnabled=true; ctx.drawImage(img,rx,ry,rw,rh);
-  // lamp seen from the front
-  ctx.globalAlpha=layout?0.6:1; ctx.fillStyle=tok('--lamp-body'); ctx.strokeStyle=tok('--muted'); ctx.lineWidth=1;
-  ctx.beginPath(); ctx.rect(cx-ao*sc,cy-bo*sc,2*ao*sc,2*bo*sc); ctx.fill(); ctx.stroke();
-  ctx.strokeStyle=tok('--line'); ctx.strokeRect(cx-G.a1*sc,cy-G.b1*sc,2*G.a1*sc,2*G.b1*sc);
-  ctx.fillStyle=tok('--lamp'); ctx.beginPath(); ctx.arc(cx,cy,Math.max(2,2*sc),0,7); ctx.fill(); ctx.globalAlpha=1;
+  // the lamp seen from the front
+  const X=cx-ao*sc, Y=cy-bo*sc, Wd=2*ao*sc, Hd=2*bo*sc, rr=Math.min(6,2*sc);
+  const rrect=(x,y,w,h,r)=>{ ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(x,y,w,h,r); else ctx.rect(x,y,w,h); };
+  if(layout){ ctx.globalAlpha=0.6; ctx.fillStyle=tok('--lamp-body'); ctx.strokeStyle=tok('--muted'); ctx.lineWidth=1; rrect(X,Y,Wd,Hd,rr); ctx.fill(); ctx.stroke(); ctx.globalAlpha=1; }
+  else {
+    ctx.save(); ctx.shadowColor='rgba(0,0,0,0.38)'; ctx.shadowBlur=Math.max(8,10*sc); ctx.shadowOffsetY=Math.max(2,2*sc);
+    const gb=ctx.createLinearGradient(X,Y,X+Wd,Y+Hd); gb.addColorStop(0,'#f4efe6'); gb.addColorStop(1,'#c9c1b3');
+    ctx.fillStyle=gb; rrect(X,Y,Wd,Hd,rr); ctx.fill(); ctx.restore();
+    // open front: the lid inside glows from the LED
+    const ix=cx-ai*sc, iy=cy-bi*sc, iw=2*ai*sc, ih=2*bi*sc, glow=ctx.createRadialGradient(cx,cy,0,cx,cy,Math.max(iw,ih)*0.7);
+    glow.addColorStop(0,'#fff8e4'); glow.addColorStop(0.55,'#ffe7b8'); glow.addColorStop(1,'#e9d6b0');
+    ctx.fillStyle=glow; ctx.fillRect(ix,iy,iw,ih);
+    ctx.strokeStyle='rgba(0,0,0,0.12)'; ctx.lineWidth=1; ctx.strokeRect(cx-G.a1*sc,cy-G.b1*sc,2*G.a1*sc,2*G.b1*sc);
+    ctx.fillStyle='rgba(60,45,20,0.35)'; ctx.beginPath(); ctx.arc(cx,cy,Math.max(1.5,1.6*sc),0,7); ctx.fill();
+  }
   if(layout){ ctx.setLineDash([6,5]); ctx.strokeStyle=tok('--lamp-ink'); ctx.lineWidth=1.5;
     if(isFinite(kOut)&&kOut*ai<E*3) ctx.strokeRect(cx-ai*kOut*sc,cy-bi*kOut*sc,2*ai*kOut*sc,2*bi*kOut*sc); ctx.setLineDash([]); }
   return sc;
@@ -723,8 +876,8 @@ function drawWall(cw,ch,dpr){
   const sc=renderWall(S,0,0,cw,ch,dpr,layout,E,420000);
   if(layout) setLegend([[tok('--fg'),'попадёт в тень'],[tok('--muted'),'под корпусом'],[tok('--danger'),'за краем стенок'],[tok('--lamp-ink'),'граница узора',true]]);
   else { const bar=niceBar(E*0.35); ctx.fillStyle=tok('--fg'); ctx.font='12px '+tok('--f-mono');
-    const bx=cw-20-bar*sc, by=ch-22; ctx.fillRect(bx,by,bar*sc,3); ctx.fillText(bar+' мм',bx,by-6);
-    setLegend([[tok('--wall-lit'),'свет'],[tok('--wall-shadow'),'тень'],[tok('--lamp-body'),'светильник']]); }
+    ctx.fillStyle='rgba(255,240,210,0.75)'; const bx=cw-20-bar*sc, by=ch-22; ctx.fillRect(bx,by,bar*sc,2); ctx.fillText(bar+' мм',bx,by-7);
+    setLegend([]); }
 }
 /* side-by-side comparison of the strut styles */
 const VARIANTS=[ {mode:'none',name:'Без перемычек'}, {mode:'nearest',name:'Кратчайшие'}, {mode:'down',name:'Лучи к основанию'}, {mode:'ring',name:'Кольца + лучи'} ];
@@ -996,6 +1149,35 @@ $('#copySvg').addEventListener('click',()=>{ const s=buildSVG(); if(!s) return t
   try{ navigator.clipboard.writeText(s).then(()=>toast('SVG скопирован.'),()=>toast('Браузер не дал доступ к буферу.',true)); }catch(e){ toast('Браузер не дал доступ к буферу.',true); } });
 
 $('#power').addEventListener('change',()=>{ const pw=POWER[$('#power').value]; if(pw){ $('#Hb').value=pw.Hb; schedule('strip'); } });
+/* ================= v2 shell ================= */
+function updateStatus(){
+  const chips=[...document.querySelectorAll('#warn .chip')], bad=chips.filter(c=>c.classList.contains('warn')).length, mid=chips.filter(c=>c.classList.contains('caution')).length;
+  const b=$('#statusBtn'), t=$('#statusTxt'); b.classList.remove('ok','warn','caution');
+  if(!st.S||!st.R||!st.R.loops.length){ t.textContent='Нет картинки'; return; }
+  const n=bad+mid, word=n%10===1&&n%100!==11?'замечание':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?'замечания':'замечаний';
+  if(!n){ b.classList.add('ok'); t.textContent='Готово к печати'; } else { b.classList.add(bad?'warn':'caution'); t.textContent=`${n} ${word}`; }
+}
+function openDrawer(open){ $('#drawer').hidden=!open; $('#statusBtn').setAttribute('aria-expanded',open); }
+$('#statusBtn').addEventListener('click',()=>openDrawer($('#drawer').hidden));
+$('#drawerClose').addEventListener('click',()=>openDrawer(false));
+function setMode(m){ document.body.classList.toggle('simple',m==='simple'); document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===m)); try{ localStorage.setItem('lampMode',m); }catch(e){} syncQuick(); draw(); }
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+const SIZES={ s:{A:80,B:80,D:55}, m:{A:100,B:100,D:65}, l:{A:130,B:130,D:85} };
+function fire(el){ el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); }
+document.querySelectorAll('[data-target]').forEach(q=>q.addEventListener('input',()=>{ const t=$('#'+q.dataset.target); if(q.type==='checkbox') t.checked=q.checked; else t.value=q.value; fire(t); }));
+document.querySelectorAll('[data-target]').forEach(q=>{ if(q.tagName==='SELECT') q.addEventListener('change',()=>{ const t=$('#'+q.dataset.target); t.value=q.value; fire(t); }); });
+document.querySelectorAll('#qSize [data-size]').forEach(b=>b.addEventListener('click',()=>{ const v=SIZES[b.dataset.size]; for(const k of ['A','B','D']) $('#'+k).value=v[k]; schedule('strip'); syncQuick(); }));
+document.querySelectorAll('#qBridge [data-bridge]').forEach(b=>b.addEventListener('click',()=>{ $('#bridgeMode').value=b.dataset.bridge; schedule('strip'); syncQuick(); }));
+$('#qCmp').addEventListener('click',()=>$('#cmpBtn').click());
+function syncQuick(){
+  document.querySelectorAll('[data-target]').forEach(q=>{ const t=$('#'+q.dataset.target); if(!t) return; if(q.type==='checkbox') q.checked=t.checked; else if(document.activeElement!==q) q.value=t.value; });
+  const A=+$('#A').value, B=+$('#B').value, D=+$('#D').value;
+  document.querySelectorAll('#qSize [data-size]').forEach(b=>{ const v=SIZES[b.dataset.size]; b.setAttribute('aria-pressed', v.A===A&&v.B===B&&v.D===D); });
+  document.querySelectorAll('#qBridge [data-bridge]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.bridge===$('#bridgeMode').value));
+  $('#oqThr').textContent=$('#thr').value+'%'; const gr=+$('#grow').value; $('#oqGrow').textContent=gr>0?'+'+gr:gr; $('#oqImgW').textContent=$('#imgW').value+' мм';
+}
+(()=>{ let m='simple'; try{ m=localStorage.getItem('lampMode')||'simple'; }catch(e){} document.body.classList.toggle('simple',m==='simple'); document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===m)); })();
+
 /* ================= loading ================= */
 function loadFile(file){
   if(!file||!file.type.startsWith('image/')) return toast('Нужен файл картинки: PNG, JPG или WebP.',true);

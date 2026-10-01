@@ -487,11 +487,56 @@ function run(){
   const s = pending; pending = 9; labels();
   if (s<=0) compute();
   if (s<=1) buildField();
+  if (s<=2 && st.F && worker()){ st.meshDirty = true; requestPanels(); return; }   // heavy part off the main thread
   if (s<=2) buildPanels();
   if (s<=3) st.meshDirty = true;
-  report(); draw();
-  if (st.tab==='3d') ensure3D();
+  finishRun();
   if (s<=2) lastRunMs = performance.now() - t0;     // how long a real rebuild takes on this device
+}
+function finishRun(){ report(); draw(); if (st.tab==='3d') ensure3D(); }
+
+/* ---- background worker: panels + the evening wall picture are computed off the main thread, so the page never freezes.
+   It is built from the very same functions (their source text), so there is one implementation. Falls back to sync. ---- */
+let W=null, wBusy=false, wAgain=false, wFver=-1, wId=0, wDog=0;
+function worker(){
+  if (W===false) return null; if (W) return W;
+  try{
+    const fns=[geom,sampler,components,chamfer,boxBlur,plaster,hitPanel,panelsCore,wallPixels].map(String).join('\n');
+    const src=`const st={}; const POWER=${JSON.stringify(POWER)}, SWITCH=${JSON.stringify(SWITCH)}, USBC=${JSON.stringify(USBC)}, BOX=${JSON.stringify(BOX)}, PANEL_NAMES=${JSON.stringify(PANEL_NAMES)};
+${fns}
+onmessage=e=>{ const m=e.data; try{ if(m.F!==undefined) st.F=m.F; const S=panelsCore(m.g); let wall=null;
+  if(m.wall){ const w=m.wall; wall=wallPixels(S,w.rw,w.rh,w.dpr,w.layout,w.E,w.budget,w.cols); wall.key=w.key; }
+  const tr=[]; for(const p of S.panels) for(const k of ['m','border','float','bridge','thin']) if(p[k]) tr.push(p[k].buffer); if(wall) tr.push(wall.data.buffer);
+  postMessage({id:m.id,S,wall},tr); }catch(err){ postMessage({id:m.id,error:String(err&&err.stack||err)}); } };`;
+    W=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));
+    W.onmessage=onWorker; W.onerror=e=>workerFail('worker error '+(e.message||''));
+  }catch(e){ W=false; return null; }
+  return W;
+}
+function workerFail(why){ console.warn('panels worker off:',why); try{ W&&W.terminate(); }catch(e){} W=false; wBusy=false; st.busy=false; clearTimeout(wDog); schedule('strip'); }
+const wallBudget=()=>matchMedia('(pointer:coarse)').matches ? 200000 : 420000;
+function wallKey(cw,ch,dpr,layout){ return cw+'x'+ch+'@'+dpr+(layout?'L':'E'); }
+function wallReq(g){
+  if (st.tab!=='wall' || st.wsub==='compare') return null;
+  const vp=$('#vp'), cw=vp.clientWidth, ch=vp.clientHeight, dpr=Math.min(2.5,window.devicePixelRatio||1), layout=st.wsub==='layout';
+  return { rw:cw, rh:ch, dpr, layout, E:wallExtent({g,G:geom(g)}), budget:wallBudget(), cols:wallCols(), key:wallKey(cw,ch,dpr,layout) };
+}
+function requestPanels(){
+  if (wBusy){ wAgain=true; return; }
+  wBusy=true; wAgain=false; st.busy=true; st.wT0=performance.now();
+  const g=GP(), msg={ id:++wId, g, wall:wallReq(g) };
+  if (st.Fver!==wFver){ msg.F=st.F; wFver=st.Fver; }
+  W.postMessage(msg);
+  clearTimeout(wDog); wDog=setTimeout(()=>{ if(wBusy && !st.S) workerFail('no answer'); }, 15000);
+  drawPreview();
+}
+function onWorker(e){
+  const r=e.data; wBusy=false; clearTimeout(wDog);
+  if (r.error) return workerFail(r.error);
+  if (wAgain || st.dragPending){ if (wAgain) requestPanels(); else st.busy=false; return; }   // settings moved on: this answer is stale
+  lastRunMs=performance.now()-st.wT0; st.busy=false;
+  setS(r.S); st.meshDirty=true; st.wallPre = r.wall ? { ver:st.ver, key:r.wall.key, px:r.wall } : null;
+  finishRun();
 }
 /* Sliders: on a fast machine everything updates live. On a slow one (phones) a full rebuild takes a second,
    so while the finger is on the slider we only draw a cheap preview of the shadow and rebuild once it is released. */
@@ -642,13 +687,14 @@ function buildSVG(){
 
 /* ================= image field on the wall (mm) ================= */
 function buildField(){
-  const R=st.R; if(!R||!R.loops.length){ st.F=null; return; }
+  const R=st.R; if(!R||!R.loops.length){ st.F=null; st.Fver=(st.Fver||0)+1; return; }
   const g=GP(), s=g.imgW/R.bbox.bw, wmm=R.bbox.bw*s, hmm=R.bbox.bh*s;
-  const ppm=Math.min(6,2600/Math.max(wmm,hmm)), cw=Math.ceil(wmm*ppm)+2, ch=Math.ceil(hmm*ppm)+2;
+  const ppm=Math.min(6,(matchMedia('(pointer:coarse)').matches?1800:2600)/Math.max(wmm,hmm)),   // phones: smaller field, same 6 px/mm up to 300 mm
+    cw=Math.ceil(wmm*ppm)+2, ch=Math.ceil(hmm*ppm)+2;
   const c=document.createElement('canvas'); c.width=cw; c.height=ch; const x=c.getContext('2d',{willReadFrequently:true});
   x.setTransform(s*ppm,0,0,s*ppm,-R.bbox.minx*s*ppm+1,-R.bbox.miny*s*ppm+1); x.fillStyle='#000'; x.fill(path2d(R),'evenodd');
   const d=x.getImageData(0,0,cw,ch).data, a=new Uint8Array(cw*ch); for(let i=0;i<cw*ch;i++) a[i]=d[i*4+3]>127?1:0;
-  st.F={ a,cw,ch,ppm,wmm,hmm };
+  st.F={ a,cw,ch,ppm,wmm,hmm }; st.Fver=(st.Fver||0)+1;
 }
 function sampler(g){
   const F=st.F; if(!F) return ()=>0; const c=Math.cos(g.rot), s=Math.sin(g.rot), {a,cw,ch,ppm,wmm,hmm}=F;
@@ -689,7 +735,14 @@ function geom(g){
 }
 const PANEL_NAMES=['Нижняя','Правая','Верхняя','Левая'];
 function buildPanels(opts){
-  const g=GP(), G=geom(g), ppm=g.ppm, smp=sampler(g), mode=(opts&&opts.mode)||g.bridgeMode;
+  const S=panelsCore(GP(),opts);
+  if(opts) return S;
+  setS(S);
+}
+function setS(S){ st.S=S; st.ver=(st.ver||0)+1; coverage(); }
+/* pure: no DOM, no st except st.F (the sampler). Also runs inside the worker. */
+function panelsCore(g,opts){
+  const G=geom(g), ppm=g.ppm, smp=sampler(g), mode=(opts&&opts.mode)||g.bridgeMode;
   const panels=[]; let floatComps=0, thinPx=0, patPx=0, stripped=0, bridgeCount=0, bridgeLen=0;
   for(let k=0;k<4;k++){
     const L = k%2 ? G.Ly : G.Lx, lim = k%2 ? G.bi : G.ai, end = k%2 ? G.endY : G.endX;
@@ -774,9 +827,7 @@ function buildPanels(opts){
     for(let i=0;i<n*SH;i++) if(m[i]&&!border[i]) patPx++;
     panels.push({ k, name:PANEL_NAMES[k], L, win: strips? end : Infinity, strips, noTop, n, SH, hmm, m, border, float, bridge, thin });
   }
-  const S={ g, G, panels, ppm, floatComps, thinPx, patPx, stripped, bridgeCount, bridgeLen, mode };
-  if(opts) return S;
-  st.S=S; st.ver=(st.ver||0)+1; coverage();
+  return { g, G, panels, ppm, floatComps, thinPx, patPx, stripped, bridgeCount, bridgeLen, mode };
 }
 /* which share of the picture lands in the shadow, under the body, on the corner posts, or past the panels */
 function coverage(){
@@ -881,10 +932,10 @@ function plaster(w,h){ // soft plaster texture, cached per size
       const v=(grid[k]*(1-fx)+grid[k+1]*fx)*(1-fy)+(grid[k+W]*(1-fx)+grid[k+W+1]*fx)*fy;
       a[y*w+x]=0.955+0.06*v+0.035*(rnd()-0.5); } }
   st.pl={key,a}; return a; }
-function renderWall(S, rx, ry, rw, rh, dpr, layout, E, budget){
+function wallPixels(S, rw, rh, dpr, layout, E, budget, cols){
   const g=S.g, G=S.G, {ao,bo,ai,bi}=G, P=S.panels;
   const kOut = 1/(1-G.zPat1/G.H);
-  const sc=Math.min(rw,rh)/(2*E), cx=rx+rw/2, cy=ry+rh/2;
+  const sc=Math.min(rw,rh)/(2*E);
   const f=Math.max(1,Math.sqrt(rw*rh*dpr*dpr/budget)); const gw=Math.max(8,Math.round(rw*dpr/f)), gh=Math.max(8,Math.round(rh*dpr/f));
   const smp0=sampler(g), kF=S.preview&&st.F ? st.F.wmm/g.imgW : 1;
   const smp = kF===1 ? smp0 : (wx,wy)=>smp0(g.offX+(wx-g.offX)*kF, g.offY+(wy-g.offY)*kF);
@@ -892,14 +943,14 @@ function renderWall(S, rx, ry, rw, rh, dpr, layout, E, budget){
   const hit = S.preview ? (wx,wy)=>{ const r=Math.max(Math.abs(wx)/ai, Math.abs(wy)/bi); if(r<=kIn) return {kind:'base'}; if(kOut>0 && r>=kOut) return {kind:'out'}; return {kind:'pv', z:G.H*(1-1/r)}; }
                         : (wx,wy)=>hitPanel(wx,wy,G,P);
   const lit=[255,238,206], dim=[58,51,42], sh=[26,22,18]; // evening room: warm LED light on plaster
-  const fg=rgb(tok('--fg')), mut=rgb(tok('--muted')), dang=rgb(tok('--danger')), bg=rgb(tok('--surface'));
-  let img;
+  const {fg,mut,dang,bg}=cols;
+  let data;
   if(layout){
-    img=layer(gw,gh,d=>{
+    data=new Uint8ClampedArray(gw*gh*4); { const d=data;
       for(let j=0;j<gh;j++){ const wy=(rh/2-(j+0.5)*(rh/gh))/sc;
         for(let i=0;i<gw;i++){ const wx=((i+0.5)*(rw/gw)-rw/2)/sc, o=(j*gw+i)*4; let col; const v=smp(wx,wy); d[o+3]=255;
           if(!v){ col=bg; } else { const h=hit(wx,wy); col = (h.kind==='body'||h.kind==='base')?mut : (h.kind==='top'||h.kind==='out')?dang : fg; if(col===mut) d[o+3]=110; }
-          d[o]=col[0]; d[o+1]=col[1]; d[o+2]=col[2]; } } });
+          d[o]=col[0]; d[o+1]=col[1]; d[o+2]=col[2]; } } }
   } else {
     /* "evening" render: warm falloff, soft penumbra that grows with distance, plaster texture, vignette */
     const N=gw*gh, dark=new Float32Array(N), soft=new Float32Array(N), bright=new Float32Array(N);
@@ -914,10 +965,18 @@ function renderWall(S, rx, ry, rw, rh, dpr, layout, E, budget){
           const idx=row*p.n+c_; dark[q]=(p.m[idx]&&!p.float[idx])?1:0; soft[q]=Math.min(1,Math.pow(h.z/G.H,1.4)); } } }
     const A=boxBlur(Float32Array.from(dark),gw,gh,1), Rb=Math.max(2,Math.round(gw/110)), Bv=boxBlur(Float32Array.from(dark),gw,gh,Rb), noise=plaster(gw,gh);
     const shade=[sh[0]+(dim[0]-sh[0])*0.18, sh[1]+(dim[1]-sh[1])*0.18, sh[2]+(dim[2]-sh[2])*0.18];
-    img=layer(gw,gh,d=>{ for(let j=0;j<gh;j++) for(let i=0;i<gw;i++){ const q=j*gw+i, o=q*4, sf=soft[q], m=Math.min(1,(A[q]*(1-sf)+Bv[q]*sf)*0.92), b=bright[q];
+    data=new Uint8ClampedArray(gw*gh*4); { const d=data; for(let j=0;j<gh;j++) for(let i=0;i<gw;i++){ const q=j*gw+i, o=q*4, sf=soft[q], m=Math.min(1,(A[q]*(1-sf)+Bv[q]*sf)*0.92), b=bright[q];
       const vx=i/gw-0.5, vy=j/gh-0.5, vig=1-0.35*(vx*vx+vy*vy), n=noise[q]*vig;
-      for(let c=0;c<3;c++){ const base=dim[c]+(lit[c]-dim[c])*b; d[o+c]=(base*(1-m)+shade[c]*m)*n; } d[o+3]=255; } });
+      for(let c=0;c<3;c++){ const base=dim[c]+(lit[c]-dim[c])*b; d[o+c]=(base*(1-m)+shade[c]*m)*n; } d[o+3]=255; } }
   }
+  return { gw, gh, data };
+}
+const wallCols=()=>({ fg:rgb(tok('--fg')), mut:rgb(tok('--muted')), dang:rgb(tok('--danger')), bg:rgb(tok('--surface')) });
+function renderWall(S, rx, ry, rw, rh, dpr, layout, E, budget, pre){
+  const G=S.G, {ao,bo,ai,bi}=G, kOut=1/(1-G.zPat1/G.H);
+  const sc=Math.min(rw,rh)/(2*E), cx=rx+rw/2, cy=ry+rh/2;
+  const px=pre || wallPixels(S,rw,rh,dpr,layout,E,budget,wallCols());
+  const img=layer(px.gw,px.gh,d=>d.set(px.data));
   ctx.imageSmoothingEnabled=true; ctx.drawImage(img,rx,ry,rw,rh);
   // the lamp seen from the front
   const X=cx-ao*sc, Y=cy-bo*sc, Wd=2*ao*sc, Hd=2*bo*sc, rr=Math.min(6,2*sc);
@@ -940,16 +999,17 @@ function renderWall(S, rx, ry, rw, rh, dpr, layout, E, budget){
 }
 /* quick shadow preview while a slider is dragged: the picture itself, the base ring and the cut at the top edge, no panels */
 function drawPreview(){
-  if(!st.dragPending || !st.S || !st.F || st.tab!=='wall' || st.wsub==='compare') return;
+  if(!(st.dragPending||st.busy) || !st.S || !st.F || st.tab!=='wall' || st.wsub==='compare') return;
   const g=GP(), G=geom(g), S={ g, G, panels:st.S.panels, preview:true };
   const {cw,ch,dpr}=fitCanvas(true); const E=wallExtent(S);   // low-res canvas while dragging: cheap to push to the screen
-  renderWall(S,0,0,cw,ch,dpr,st.wsub==='layout',E,70000);
-  setLegend([[tok('--lamp'),'черновик — точная тень, когда отпустите ползунок']]);
+  renderWall(S,0,0,cw,ch,dpr,st.wsub==='layout',E,matchMedia('(pointer:coarse)').matches?35000:70000);
+  setLegend([[tok('--lamp'), st.dragPending ? 'черновик — точная тень, когда отпустите ползунок' : 'черновик — считаю точную тень…']]);
 }
 function drawWall(cw,ch,dpr){
   if(st.wsub==='compare') return drawCompare(cw,ch,dpr);
   const S=st.S; if(!S){ setLegend([]); return; } const E=wallExtent(S), layout=st.wsub==='layout';
-  st.lastE=E; const sc=renderWall(S,0,0,cw,ch,dpr,layout,E, matchMedia('(pointer:coarse)').matches ? 200000 : 420000);
+  st.lastE=E; const P=st.wallPre, pre=(P&&P.ver===st.ver&&P.key===wallKey(cw,ch,dpr,layout))?P.px:null;
+  const sc=renderWall(S,0,0,cw,ch,dpr,layout,E,wallBudget(),pre);
   if(layout) setLegend([[tok('--fg'),'попадёт в тень'],[tok('--muted'),'под корпусом'],[tok('--danger'),'за краем стенок'],[tok('--lamp-ink'),'граница узора',true]]);
   else { const bar=niceBar(E*0.35); ctx.fillStyle=tok('--fg'); ctx.font='12px '+tok('--f-mono');
     ctx.fillStyle='rgba(255,240,210,0.75)'; const bx=cw-20-bar*sc, by=ch-22; ctx.fillRect(bx,by,bar*sc,2); ctx.fillText(bar+' мм',bx,by-7);
@@ -1285,6 +1345,7 @@ ${LY.door?'   Люк батареек ставится в заднюю стен�
 $('#dlStl').addEventListener('click',()=>{
   if(!threeOK()) return toast('Для STL нужна библиотека three.js, она не загрузилась.',true);
   if(!st.S||!st.R?.loops.length) return toast('Сначала загрузите картинку.',true);
+  if(st.busy||st.dragPending) return toast('Секунду, досчитываю стенки…',true);
   save(st.name+'_bra.zip', zip(exportFiles())); });
 $('#copySvg').addEventListener('click',()=>{ const s=buildSVG(); if(!s) return toast('Сначала загрузите картинку.',true);
   try{ navigator.clipboard.writeText(s).then(()=>toast('SVG скопирован.'),()=>toast('Браузер не дал доступ к буферу.',true)); }catch(e){ toast('Браузер не дал доступ к буферу.',true); } });
@@ -1380,7 +1441,7 @@ document.querySelectorAll('[data-sub]').forEach(b=>b.addEventListener('click',()
 document.querySelectorAll('[data-ex]').forEach(b=>b.addEventListener('click',()=>{ st.explode=b.dataset.ex==='1'; document.querySelectorAll('[data-ex]').forEach(x=>x.setAttribute('aria-pressed',x===b)); placeParts(); render3D(); }));
 document.querySelectorAll('[data-wsub]').forEach(b=>b.addEventListener('click',()=>{ st.wsub=b.dataset.wsub; document.querySelectorAll('[data-wsub]').forEach(x=>x.setAttribute('aria-pressed',x===b)); draw(); }));
 
-new ResizeObserver(()=>{ if(st.tab==='3d') return; if(st.dragPending) drawPreview(); else draw(); }).observe(vp);
+new ResizeObserver(()=>{ if(st.tab==='3d') return; if(st.dragPending||st.busy) drawPreview(); else draw(); }).observe(vp);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);
 new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 labels(); showWelcome(true); draw(); updateStatus();
